@@ -131,6 +131,23 @@ class SystemTab extends StatelessWidget {
                   letterSpacing: 1.0,
                 ),
               ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 16,
+                runSpacing: 12,
+                children: [
+                  _SystemInfoChip(
+                    label: 'Proxima meta',
+                    value: '${profile.nextLevelXp - profile.currentXp} XP',
+                    accent: palette.primary,
+                  ),
+                  _SystemInfoChip(
+                    label: 'Ganancia',
+                    value: '+3 stats / nivel',
+                    accent: palette.secondary,
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -284,6 +301,53 @@ class SystemTab extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SystemInfoChip extends StatelessWidget {
+  const _SystemInfoChip({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  final String label;
+  final String value;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: accent,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -125,55 +125,73 @@ class HunterTab extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
           decorate: false,
           showCorners: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'INVENTARIO',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: palette.primary,
-                  letterSpacing: 2.0,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Row(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 420;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: InventoryTile(
-                      label: 'Freeze',
-                      value: '${inventory['freeze'] ?? 0}',
-                      accent: palette.primary,
+                  Text(
+                    'INVENTARIO',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: palette.primary,
+                      letterSpacing: 2.0,
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: InventoryTile(
-                      label: 'XP Boost',
-                      value: xpBoostArmed ? 'Activo' : '${inventory['xp_boost'] ?? 0}',
-                      accent: palette.secondary,
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      SizedBox(
+                        width: compact ? constraints.maxWidth : (constraints.maxWidth - 20) / 3,
+                        child: InventoryTile(
+                          label: 'Freeze',
+                          value: '${inventory['freeze'] ?? 0}',
+                          accent: palette.primary,
+                        ),
+                      ),
+                      SizedBox(
+                        width: compact ? constraints.maxWidth : (constraints.maxWidth - 20) / 3,
+                        child: InventoryTile(
+                          label: 'XP Boost',
+                          value: xpBoostArmed ? 'Activo' : '${inventory['xp_boost'] ?? 0}',
+                          accent: palette.secondary,
+                        ),
+                      ),
+                      SizedBox(
+                        width: compact ? constraints.maxWidth : (constraints.maxWidth - 20) / 3,
+                        child: InventoryTile(
+                          label: 'Re-roll',
+                          value: '${inventory['reroll'] ?? 0}',
+                          accent: palette.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: xpBoostArmed ? null : onUseXpBoost,
+                      child: const Text('Activar XP Boost'),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: InventoryTile(
-                      label: 'Re-roll',
-                      value: '${inventory['reroll'] ?? 0}',
-                      accent: palette.primary,
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: onResetProgress,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFFF7D7D),
+                        side: const BorderSide(color: Color(0x66FF7D7D)),
+                      ),
+                      child: const Text('Reset progreso'),
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 14),
-              OutlinedButton(
-                onPressed: xpBoostArmed ? null : onUseXpBoost,
-                child: const Text('Activar XP Boost'),
-              ),
-              const SizedBox(height: 10),
-              OutlinedButton(
-                onPressed: onResetProgress,
-                child: const Text('Reset progreso'),
-              ),
-            ],
+              );
+            },
           ),
         ),
         const SizedBox(height: 18),
@@ -198,6 +216,14 @@ class HunterTab extends StatelessWidget {
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: Colors.white70,
                   height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Etapa actual: ${trainingPath.stages[selectedStageIndex].title}',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: palette.secondary,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 16),

@@ -205,54 +205,80 @@ class QuestTab extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
           decorate: false,
           showCorners: false,
-          child: Column(
-            children: [
-              Row(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 420;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: InventoryTile(
-                      label: 'Freeze',
-                      value: '${inventory['freeze'] ?? 0}',
-                      accent: palette.primary,
-                    ),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      SizedBox(
+                        width: compact ? constraints.maxWidth : (constraints.maxWidth - 20) / 3,
+                        child: InventoryTile(
+                          label: 'Freeze',
+                          value: '${inventory['freeze'] ?? 0}',
+                          accent: palette.primary,
+                        ),
+                      ),
+                      SizedBox(
+                        width: compact ? constraints.maxWidth : (constraints.maxWidth - 20) / 3,
+                        child: InventoryTile(
+                          label: 'XP Boost',
+                          value: xpBoostArmed ? 'Activo' : '${inventory['xp_boost'] ?? 0}',
+                          accent: palette.secondary,
+                        ),
+                      ),
+                      SizedBox(
+                        width: compact ? constraints.maxWidth : (constraints.maxWidth - 20) / 3,
+                        child: InventoryTile(
+                          label: 'Re-roll',
+                          value: '${inventory['reroll'] ?? 0}',
+                          accent: palette.primary,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: InventoryTile(
-                      label: 'XP Boost',
-                      value: xpBoostArmed ? 'Activo' : '${inventory['xp_boost'] ?? 0}',
-                      accent: palette.secondary,
+                  const SizedBox(height: 14),
+                  if (compact) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: xpBoostArmed ? null : onUseXpBoost,
+                        child: const Text('Usar XP Boost'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: InventoryTile(
-                      label: 'Re-roll',
-                      value: '${inventory['reroll'] ?? 0}',
-                      accent: palette.primary,
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: onUseReroll,
+                        child: const Text('Usar Re-roll'),
+                      ),
                     ),
-                  ),
+                  ] else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: xpBoostArmed ? null : onUseXpBoost,
+                            child: const Text('Usar XP Boost'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: onUseReroll,
+                            child: const Text('Usar Re-roll'),
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: xpBoostArmed ? null : onUseXpBoost,
-                      child: const Text('Usar XP Boost'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: onUseReroll,
-                      child: const Text('Usar Re-roll'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              );
+            },
           ),
         ),
         const SizedBox(height: 18),
@@ -309,6 +335,22 @@ class QuestTab extends StatelessWidget {
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: Colors.white60,
                   height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: palette.secondary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: palette.secondary.withValues(alpha: 0.22)),
+                ),
+                child: Text(
+                  'Etapa activa: ${trainingPath.stages[selectedStageIndex].title}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],

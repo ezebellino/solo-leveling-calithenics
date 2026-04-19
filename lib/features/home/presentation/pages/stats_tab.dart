@@ -84,6 +84,29 @@ class StatsTab extends StatelessWidget {
         const SizedBox(height: 18),
         HolographicPanel(
           glowColor: palette.primary,
+          padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+          decorate: false,
+          showCorners: false,
+          child: Wrap(
+            spacing: 18,
+            runSpacing: 12,
+            children: [
+              MiniMetric(
+                label: 'Etapa activa',
+                value: trainingPath.stages[selectedStageIndex].title,
+                accent: palette.primary,
+              ),
+              MiniMetric(
+                label: 'Ganancia',
+                value: '+3 puntos por nivel',
+                accent: palette.secondary,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        HolographicPanel(
+          glowColor: palette.primary,
           padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
           decorate: false,
           showCorners: false,
