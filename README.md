@@ -30,6 +30,11 @@ Este repo arranca con una base manual de Flutter:
 ## Estructura
 
 ```text
+backend/
+  app/
+  Dockerfile
+  requirements.txt
+  .env.example
 lib/
   app.dart
   main.dart
@@ -45,6 +50,8 @@ lib/
 ## Estado del entorno
 
 El proyecto ya fue inicializado con Flutter y se dejo un SDK local en `tools/flutter` para trabajo inmediato. Ese SDK esta ignorado en Git para no subir gigas innecesarios al repo.
+
+Tambien se dejo un backend `FastAPI` en `backend/`, preparado para desplegarse como servicio separado en Railway.
 
 ## Ejecucion local
 
@@ -78,3 +85,15 @@ Para correr en Android todavia falta instalar Android Studio o al menos Android 
    - sincronizacion cloud
    - ranking social
 
+## Railway
+
+El backend se puede subir como un servicio nuevo en Railway usando este mismo repo:
+
+1. crear un servicio desde GitHub;
+2. configurar `Root Directory = backend`;
+3. Railway detectara el `Dockerfile` y levantara la API;
+4. usar `/health` como healthcheck.
+
+Referencias oficiales Railway:
+- FastAPI guide: https://docs.railway.com/guides/fastapi
+- Start command: https://docs.railway.com/guides/start-command
