@@ -27,6 +27,7 @@ class User(TimestampMixin, Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     alias: Mapped[str] = mapped_column(String(80))
+    avatar_url: Mapped[str] = mapped_column(String(500), default="")
     email: Mapped[str | None] = mapped_column(String(255), unique=True)
     rank: Mapped[str] = mapped_column(String(32), default="E-Rank")
     stage_index: Mapped[int] = mapped_column(Integer, default=1)
@@ -61,6 +62,7 @@ class PlayerProgress(TimestampMixin, Base):
     current_xp: Mapped[int] = mapped_column(Integer, default=0)
     next_level_xp: Mapped[int] = mapped_column(Integer, default=120)
     streak_days: Mapped[int] = mapped_column(Integer, default=0)
+    completed_days: Mapped[int] = mapped_column(Integer, default=0)
     shadow_army: Mapped[int] = mapped_column(Integer, default=0)
     strength: Mapped[int] = mapped_column(Integer, default=1)
     agility: Mapped[int] = mapped_column(Integer, default=1)
@@ -92,6 +94,8 @@ class DailyQuest(TimestampMixin, Base):
     title: Mapped[str] = mapped_column(String(120))
     description: Mapped[str] = mapped_column(Text)
     xp_reward: Mapped[int] = mapped_column(Integer, default=120)
+    progress: Mapped[int] = mapped_column(Integer, default=0)
+    target: Mapped[int] = mapped_column(Integer, default=1)
     is_special: Mapped[bool] = mapped_column(Boolean, default=False)
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -105,6 +109,7 @@ def seed_default_data(session: Session) -> None:
 
     user = User(
         alias="Eze Bellino",
+        avatar_url="",
         email=None,
         rank="E-Rank",
         stage_index=1,
@@ -117,6 +122,7 @@ def seed_default_data(session: Session) -> None:
         current_xp=0,
         next_level_xp=120,
         streak_days=0,
+        completed_days=0,
         shadow_army=0,
         strength=1,
         agility=1,
@@ -133,15 +139,34 @@ def seed_default_data(session: Session) -> None:
             title="Mision diaria: Entrenamiento de fuerza",
             description="50 flexiones, 50 sentadillas, 50 abdominales y 3 km de caminata.",
             xp_reward=120,
+            progress=0,
+            target=50,
             is_special=False,
         ),
         DailyQuest(
             title="Disciplina de sombra",
             description="Mantener hollow hold y respiracion controlada por 90 segundos.",
             xp_reward=90,
+            progress=0,
+            target=3,
             is_special=False,
         ),
     ]
 
     session.add(user)
     session.commit()
+
+
+def reconcile_default_data(session: Session) -> None:
+    quests = session.query(DailyQuest).all()
+    changed = False
+    for quest in quests:
+        if quest.title == "Mision diaria: Entrenamiento de fuerza" and quest.target == 1:
+            quest.target = 50
+            changed = True
+        elif quest.title == "Disciplina de sombra" and quest.target == 1:
+            quest.target = 3
+            changed = True
+
+    if changed:
+        session.commit()

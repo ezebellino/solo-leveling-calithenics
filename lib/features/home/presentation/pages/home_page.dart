@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/home_api_client.dart';
 import '../../data/local_player_state_repository.dart';
 import '../../domain/daily_quest.dart';
 import '../../domain/hunter_profile.dart';
@@ -26,6 +27,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  static const _apiBaseUrl = 'https://backend-api-sync-v2-production.up.railway.app';
   static const _systemPalette = SectionPalette(
     primary: Color(0xFF79E7FF),
     secondary: Color(0xFF25F3B4),
@@ -57,6 +59,8 @@ class _HomePageState extends State<HomePage> {
   ];
   static const _profile = HunterProfile(
     alias: 'Eze Bellino',
+    avatarUrl: '',
+    avatarImageBase64: '',
     rank: 'E-Rank',
     title: 'Jugador de calistenia',
     level: 1,
@@ -172,6 +176,7 @@ class _HomePageState extends State<HomePage> {
     _controller = HomeController(
       storage: _storage,
       system: _system,
+      apiClient: HomeApiClient(baseUrl: _apiBaseUrl),
     )..load();
   }
 
@@ -371,6 +376,8 @@ class _HomePageState extends State<HomePage> {
           selectedStageIndex: _selectedStageIndex,
           onStageSelected: _controller.changeStage,
           onUseXpBoost: _controller.useXpBoost,
+          onUpdateAvatar: _controller.updateAvatarUrl,
+          onUpdateLocalAvatar: _controller.updateAvatarImageBase64,
           onResetProgress: _controller.resetProgress,
           palette: _playerPalette,
         );

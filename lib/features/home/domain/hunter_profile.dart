@@ -1,6 +1,8 @@
 class HunterProfile {
   const HunterProfile({
     required this.alias,
+    required this.avatarUrl,
+    required this.avatarImageBase64,
     required this.rank,
     required this.title,
     required this.level,
@@ -15,6 +17,8 @@ class HunterProfile {
   });
 
   final String alias;
+  final String avatarUrl;
+  final String avatarImageBase64;
   final String rank;
   final String title;
   final int level;
@@ -31,6 +35,8 @@ class HunterProfile {
 
   HunterProfile copyWith({
     String? alias,
+    String? avatarUrl,
+    String? avatarImageBase64,
     String? rank,
     String? title,
     int? level,
@@ -45,6 +51,8 @@ class HunterProfile {
   }) {
     return HunterProfile(
       alias: alias ?? this.alias,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      avatarImageBase64: avatarImageBase64 ?? this.avatarImageBase64,
       rank: rank ?? this.rank,
       title: title ?? this.title,
       level: level ?? this.level,
@@ -62,6 +70,8 @@ class HunterProfile {
   Map<String, Object?> toJson() {
     return {
       'alias': alias,
+      'avatarUrl': avatarUrl,
+      'avatarImageBase64': avatarImageBase64,
       'rank': rank,
       'title': title,
       'level': level,
@@ -79,6 +89,8 @@ class HunterProfile {
   factory HunterProfile.fromJson(Map<String, Object?> json) {
     return HunterProfile(
       alias: json['alias'] as String,
+      avatarUrl: json['avatarUrl'] as String? ?? '',
+      avatarImageBase64: json['avatarImageBase64'] as String? ?? '',
       rank: json['rank'] as String,
       title: json['title'] as String,
       level: json['level'] as int,

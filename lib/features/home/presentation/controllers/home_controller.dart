@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../data/home_api_client.dart';
 import '../../data/local_player_state_repository.dart';
 import '../../domain/daily_quest.dart';
 import '../../domain/player_state.dart';
@@ -11,11 +12,14 @@ class HomeController extends ChangeNotifier {
   HomeController({
     required LocalPlayerStateRepository storage,
     required PlayerSystemService system,
+    HomeApiClient? apiClient,
   })  : _storage = storage,
-        _system = system;
+        _system = system,
+        _apiClient = apiClient;
 
   final LocalPlayerStateRepository _storage;
   final PlayerSystemService _system;
+  final HomeApiClient? _apiClient;
 
   PlayerState? _playerState;
   bool _isLoading = true;
@@ -36,14 +40,14 @@ class HomeController extends ChangeNotifier {
   Future<void> load() async {
     final loaded = await _storage.load();
     final hydrated = _system.hydrate(loaded);
-    _playerState = hydrated.state;
+    _playerState = await _mergeRemoteSnapshot(hydrated.state);
     _isLoading = false;
     notifyListeners();
 
     for (final notice in hydrated.notices) {
       _showRewardNotice(notice);
     }
-    await _storage.save(hydrated.state);
+    await _storage.save(_playerState!);
   }
 
   void selectTab(int index) {
@@ -82,6 +86,7 @@ class HomeController extends ChangeNotifier {
       return;
     }
     await _applyUpdate(_system.advanceQuest(state, quest));
+    await _syncAdvanceQuest(quest);
   }
 
   Future<void> advanceSpecialQuest(DailyQuest quest) async {
@@ -106,6 +111,48 @@ class HomeController extends ChangeNotifier {
       return;
     }
     await _applyUpdate(_system.useXpBoost(state));
+  }
+
+  Future<void> updateAvatarUrl(String avatarUrl) async {
+    final state = _playerState;
+    if (state == null) {
+      return;
+    }
+    final sanitized = avatarUrl.trim();
+    await _persist(
+      state.copyWith(
+        profile: state.profile.copyWith(
+          avatarUrl: sanitized,
+          avatarImageBase64: sanitized.isEmpty ? '' : state.profile.avatarImageBase64,
+        ),
+      ),
+    );
+    _showRewardNotice(
+      sanitized.isEmpty
+          ? 'Avatar removido del perfil'
+          : 'Avatar actualizado en el perfil',
+    );
+    await _syncAvatar(sanitized);
+  }
+
+  Future<void> updateAvatarImageBase64(String avatarImageBase64) async {
+    final state = _playerState;
+    if (state == null) {
+      return;
+    }
+    await _persist(
+      state.copyWith(
+        profile: state.profile.copyWith(
+          avatarImageBase64: avatarImageBase64,
+          avatarUrl: '',
+        ),
+      ),
+    );
+    _showRewardNotice(
+      avatarImageBase64.isEmpty
+          ? 'Avatar local removido'
+          : 'Avatar local actualizado',
+    );
   }
 
   Future<void> useReroll() async {
@@ -140,6 +187,58 @@ class HomeController extends ChangeNotifier {
     await _storage.save(state);
   }
 
+  Future<PlayerState> _mergeRemoteSnapshot(PlayerState fallback) async {
+    final apiClient = _apiClient;
+    if (apiClient == null) {
+      return fallback;
+    }
+
+    try {
+      final snapshot = await apiClient.fetchSnapshot();
+      return fallback.copyWith(
+        profile: snapshot.profile,
+        selectedStageIndex: snapshot.selectedStageIndex,
+        quests: snapshot.quests,
+        inventory: snapshot.inventory,
+        completedDays: snapshot.completedDays,
+      );
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  Future<void> _syncAvatar(String avatarUrl) async {
+    final apiClient = _apiClient;
+    if (apiClient == null) {
+      return;
+    }
+
+    try {
+      await apiClient.updateAvatarUrl(avatarUrl);
+    } catch (_) {
+      _showRewardNotice('Avatar guardado solo en local');
+    }
+  }
+
+  Future<void> _syncAdvanceQuest(DailyQuest quest) async {
+    final apiClient = _apiClient;
+    if (apiClient == null) {
+      return;
+    }
+
+    try {
+      await apiClient.advanceQuest(quest.id);
+      final state = _playerState;
+      if (state == null) {
+        return;
+      }
+      final remoteState = await _mergeRemoteSnapshot(state);
+      await _persist(remoteState);
+    } catch (_) {
+      _showRewardNotice('Progreso remoto no disponible');
+    }
+  }
+
   void _showLevelUp(int level) {
     _levelUpTimer?.cancel();
     _levelUpNotice = level;
@@ -168,6 +267,7 @@ class HomeController extends ChangeNotifier {
   void dispose() {
     _levelUpTimer?.cancel();
     _rewardNoticeTimer?.cancel();
+    _apiClient?.dispose();
     super.dispose();
   }
 }

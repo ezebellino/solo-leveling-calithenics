@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../../domain/training_path.dart';
@@ -394,15 +396,27 @@ class ProfileLine extends StatelessWidget {
 class HunterAvatar extends StatelessWidget {
   const HunterAvatar({
     required this.alias,
+    required this.avatarUrl,
+    required this.avatarImageBase64,
     required this.accent,
     super.key,
   });
 
   final String alias;
+  final String avatarUrl;
+  final String avatarImageBase64;
   final Color accent;
 
   @override
   Widget build(BuildContext context) {
+    ImageProvider<Object>? imageProvider;
+    if (avatarImageBase64.isNotEmpty) {
+      final bytes = base64Decode(avatarImageBase64);
+      imageProvider = MemoryImage(bytes);
+    } else if (avatarUrl.isNotEmpty) {
+      imageProvider = NetworkImage(avatarUrl);
+    }
+
     return Container(
       width: 72,
       height: 72,
@@ -410,6 +424,12 @@ class HunterAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(color: accent),
+        image: imageProvider != null
+            ? DecorationImage(
+                image: imageProvider,
+                fit: BoxFit.cover,
+              )
+            : null,
         boxShadow: const [
           BoxShadow(
             color: Color(0x3379E7FF),
@@ -417,12 +437,14 @@ class HunterAvatar extends StatelessWidget {
           ),
         ],
       ),
-      child: Text(
-        alias.substring(0, 1),
-        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-      ),
+      child: imageProvider == null
+          ? Text(
+              alias.substring(0, 1),
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            )
+          : null,
     );
   }
 }

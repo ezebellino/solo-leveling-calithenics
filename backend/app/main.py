@@ -7,8 +7,26 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.schemas import HealthResponse
-from app.services import build_bootstrap_payload, build_database_status, initialize_database
+from app.schemas import (
+    AdvanceQuestRequest,
+    DailyQuestResponse,
+    HealthResponse,
+    InventoryItemResponse,
+    PlayerOverviewResponse,
+    QuestListResponse,
+    UpdatePlayerProgressRequest,
+)
+from app.services import (
+    advance_quest,
+    build_bootstrap_payload,
+    build_database_status,
+    complete_quest,
+    get_inventory,
+    get_player_overview,
+    get_today_quests,
+    initialize_database,
+    update_player_progress,
+)
 
 
 @asynccontextmanager
@@ -55,3 +73,56 @@ def healthcheck() -> HealthResponse:
 @app.get(f"{settings.api_prefix}/bootstrap", tags=["bootstrap"])
 def bootstrap(db: Session = Depends(get_db)) -> dict:
     return build_bootstrap_payload(db).model_dump(by_alias=True)
+
+
+@app.get(f"{settings.api_prefix}/player", response_model=PlayerOverviewResponse, tags=["player"])
+def player_overview(db: Session = Depends(get_db)) -> PlayerOverviewResponse:
+    return get_player_overview(db)
+
+
+@app.patch(
+    f"{settings.api_prefix}/player/progress",
+    response_model=PlayerOverviewResponse,
+    tags=["player"],
+)
+def patch_player_progress(
+    payload: UpdatePlayerProgressRequest,
+    db: Session = Depends(get_db),
+) -> PlayerOverviewResponse:
+    return update_player_progress(db, payload)
+
+
+@app.get(f"{settings.api_prefix}/quests/today", response_model=QuestListResponse, tags=["quests"])
+def today_quests(db: Session = Depends(get_db)) -> QuestListResponse:
+    return get_today_quests(db)
+
+
+@app.post(
+    f"{settings.api_prefix}/quests/{{quest_id}}/advance",
+    response_model=DailyQuestResponse,
+    tags=["quests"],
+)
+def post_advance_quest(
+    quest_id: str,
+    payload: AdvanceQuestRequest,
+    db: Session = Depends(get_db),
+) -> DailyQuestResponse:
+    return advance_quest(db, quest_id, payload.amount)
+
+
+@app.post(
+    f"{settings.api_prefix}/quests/{{quest_id}}/complete",
+    response_model=DailyQuestResponse,
+    tags=["quests"],
+)
+def post_complete_quest(quest_id: str, db: Session = Depends(get_db)) -> DailyQuestResponse:
+    return complete_quest(db, quest_id)
+
+
+@app.get(
+    f"{settings.api_prefix}/inventory",
+    response_model=list[InventoryItemResponse],
+    tags=["inventory"],
+)
+def inventory(db: Session = Depends(get_db)) -> list[InventoryItemResponse]:
+    return get_inventory(db)

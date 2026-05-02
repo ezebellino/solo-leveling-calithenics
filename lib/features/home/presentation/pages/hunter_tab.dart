@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../domain/hunter_profile.dart';
 import '../../domain/training_path.dart';
@@ -18,6 +21,8 @@ class HunterTab extends StatelessWidget {
     required this.selectedStageIndex,
     required this.onStageSelected,
     required this.onUseXpBoost,
+    required this.onUpdateAvatar,
+    required this.onUpdateLocalAvatar,
     required this.onResetProgress,
     required this.palette,
     super.key,
@@ -30,6 +35,8 @@ class HunterTab extends StatelessWidget {
   final int selectedStageIndex;
   final ValueChanged<int> onStageSelected;
   final VoidCallback onUseXpBoost;
+  final ValueChanged<String> onUpdateAvatar;
+  final ValueChanged<String> onUpdateLocalAvatar;
   final VoidCallback onResetProgress;
   final SectionPalette palette;
 
@@ -57,7 +64,12 @@ class HunterTab extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  HunterAvatar(alias: profile.alias, accent: palette.primary),
+                  HunterAvatar(
+                    alias: profile.alias,
+                    avatarUrl: profile.avatarUrl,
+                    avatarImageBase64: profile.avatarImageBase64,
+                    accent: palette.primary,
+                  ),
                   const SizedBox(height: 14),
                   Text(
                     profile.alias,
@@ -73,6 +85,22 @@ class HunterTab extends StatelessWidget {
                     style: theme.textTheme.bodyLarge?.copyWith(
                       color: Colors.white70,
                     ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      OutlinedButton(
+                        onPressed: () => _pickLocalAvatar(),
+                        child: const Text('Subir foto'),
+                      ),
+                      OutlinedButton(
+                        onPressed: () => _showAvatarDialog(context),
+                        child: const Text('Usar URL'),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -274,5 +302,58 @@ class HunterTab extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _showAvatarDialog(BuildContext context) async {
+    final controller = TextEditingController(text: profile.avatarUrl);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF08111B),
+        title: const Text('Imagen de perfil'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'URL de la imagen',
+            hintText: 'https://...',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(''),
+            child: const Text('Quitar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      onUpdateAvatar(result);
+    }
+  }
+
+  Future<void> _pickLocalAvatar() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1200,
+      imageQuality: 85,
+    );
+
+    if (image == null) {
+      return;
+    }
+
+    final bytes = await image.readAsBytes();
+    onUpdateLocalAvatar(base64Encode(bytes));
   }
 }
