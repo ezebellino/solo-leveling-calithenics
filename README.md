@@ -53,6 +53,10 @@ El proyecto ya fue inicializado con Flutter y se dejo un SDK local en `tools/flu
 
 Tambien se dejo un backend `FastAPI` en `backend/`, preparado para desplegarse como servicio separado en Railway.
 
+Ese backend ya quedo desplegado en Railway en:
+
+- [backend-api-clean-production.up.railway.app](https://backend-api-clean-production.up.railway.app)
+
 ## Ejecucion local
 
 Desde la raiz del repo podes usar:
@@ -93,6 +97,13 @@ El backend se puede subir como un servicio nuevo en Railway usando este mismo re
 2. configurar `Root Directory = backend`;
 3. Railway detectara el `Dockerfile` y levantara la API;
 4. usar `/health` como healthcheck.
+
+Ademas, la capa de base de datos ya quedo preparada:
+
+- `SQLite` por defecto para desarrollo local;
+- `Postgres` listo para usarse cuando Railway exponga `DATABASE_URL`;
+- modelos iniciales para usuario, progreso, inventario y quests;
+- seed automatico del jugador base al arrancar.
 
 Referencias oficiales Railway:
 - FastAPI guide: https://docs.railway.com/guides/fastapi

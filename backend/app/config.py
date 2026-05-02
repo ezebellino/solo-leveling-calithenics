@@ -4,11 +4,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "solo-leveling-api"
-    app_env: str = Field(default="development", alias="APP_ENV")
-    app_debug: bool = Field(default=False, alias="APP_DEBUG")
+    app_env: str = Field(default="development", validation_alias="APP_ENV")
+    app_debug: bool = Field(default=False, validation_alias="APP_DEBUG")
     api_prefix: str = "/api/v1"
-    allowed_origin: str = Field(default="*", alias="ALLOWED_ORIGIN")
-    database_url: str | None = Field(default=None, alias="DATABASE_URL")
+    allowed_origin: str = Field(default="*", validation_alias="ALLOWED_ORIGIN")
+    database_url: str = Field(
+        default="sqlite:///./solo_leveling.db",
+        validation_alias="DATABASE_URL",
+    )
+    db_echo: bool = Field(default=False, validation_alias="DB_ECHO")
 
     model_config = SettingsConfigDict(
         env_file=".env",

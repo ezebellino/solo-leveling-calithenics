@@ -1,11 +1,20 @@
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.database import get_db
 from app.schemas import HealthResponse
-from app.services import build_bootstrap_payload
+from app.services import build_bootstrap_payload, build_database_status, initialize_database
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    initialize_database()
+    yield
 
 
 app = FastAPI(
@@ -13,6 +22,7 @@ app = FastAPI(
     version="0.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -38,9 +48,10 @@ def healthcheck() -> HealthResponse:
         service=settings.app_name,
         environment=settings.app_env,
         timestamp=datetime.now(timezone.utc),
+        database=build_database_status(),
     )
 
 
 @app.get(f"{settings.api_prefix}/bootstrap", tags=["bootstrap"])
-def bootstrap() -> dict:
-    return build_bootstrap_payload().model_dump(by_alias=True)
+def bootstrap(db: Session = Depends(get_db)) -> dict:
+    return build_bootstrap_payload(db).model_dump(by_alias=True)

@@ -3,11 +3,18 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+class DatabaseStatus(BaseModel):
+    status: str
+    engine: str
+    detail: str | None = None
+
+
 class HealthResponse(BaseModel):
     status: str = "ok"
     service: str
     environment: str
     timestamp: datetime
+    database: DatabaseStatus
 
 
 class StageSummary(BaseModel):

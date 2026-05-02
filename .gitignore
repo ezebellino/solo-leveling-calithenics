@@ -7,6 +7,8 @@
 .pub/
 .pub-cache/
 .vscode/
+__pycache__/
+*.py[cod]
 build/
 coverage/
 tools/
