@@ -16,6 +16,13 @@ class PlayerState {
     required this.completedDays,
     required this.xpBoostArmed,
     required this.lastStreakCreditDate,
+    this.totalCompletedQuests = 0,
+    this.completedSpecialQuests = 0,
+    this.perfectWeeks = 0,
+    this.currentWeekCompletedMainDays = 0,
+    this.currentWeekKey = '',
+    this.unlockedShadowIds = const <String>[],
+    this.lastUnlockedShadowId = '',
   });
 
   final HunterProfile profile;
@@ -31,6 +38,13 @@ class PlayerState {
   final int completedDays;
   final bool xpBoostArmed;
   final String lastStreakCreditDate;
+  final int totalCompletedQuests;
+  final int completedSpecialQuests;
+  final int perfectWeeks;
+  final int currentWeekCompletedMainDays;
+  final String currentWeekKey;
+  final List<String> unlockedShadowIds;
+  final String lastUnlockedShadowId;
 
   PlayerState copyWith({
     HunterProfile? profile,
@@ -46,6 +60,13 @@ class PlayerState {
     int? completedDays,
     bool? xpBoostArmed,
     String? lastStreakCreditDate,
+    int? totalCompletedQuests,
+    int? completedSpecialQuests,
+    int? perfectWeeks,
+    int? currentWeekCompletedMainDays,
+    String? currentWeekKey,
+    List<String>? unlockedShadowIds,
+    String? lastUnlockedShadowId,
   }) {
     return PlayerState(
       profile: profile ?? this.profile,
@@ -61,6 +82,17 @@ class PlayerState {
       completedDays: completedDays ?? this.completedDays,
       xpBoostArmed: xpBoostArmed ?? this.xpBoostArmed,
       lastStreakCreditDate: lastStreakCreditDate ?? this.lastStreakCreditDate,
+      totalCompletedQuests:
+          totalCompletedQuests ?? this.totalCompletedQuests,
+      completedSpecialQuests:
+          completedSpecialQuests ?? this.completedSpecialQuests,
+      perfectWeeks: perfectWeeks ?? this.perfectWeeks,
+      currentWeekCompletedMainDays:
+          currentWeekCompletedMainDays ?? this.currentWeekCompletedMainDays,
+      currentWeekKey: currentWeekKey ?? this.currentWeekKey,
+      unlockedShadowIds: unlockedShadowIds ?? this.unlockedShadowIds,
+      lastUnlockedShadowId:
+          lastUnlockedShadowId ?? this.lastUnlockedShadowId,
     );
   }
 
@@ -79,6 +111,13 @@ class PlayerState {
       'completedDays': completedDays,
       'xpBoostArmed': xpBoostArmed,
       'lastStreakCreditDate': lastStreakCreditDate,
+      'totalCompletedQuests': totalCompletedQuests,
+      'completedSpecialQuests': completedSpecialQuests,
+      'perfectWeeks': perfectWeeks,
+      'currentWeekCompletedMainDays': currentWeekCompletedMainDays,
+      'currentWeekKey': currentWeekKey,
+      'unlockedShadowIds': unlockedShadowIds,
+      'lastUnlockedShadowId': lastUnlockedShadowId,
     };
   }
 
@@ -105,6 +144,17 @@ class PlayerState {
       completedDays: json['completedDays'] as int? ?? 0,
       xpBoostArmed: json['xpBoostArmed'] as bool? ?? false,
       lastStreakCreditDate: json['lastStreakCreditDate'] as String? ?? '',
+      totalCompletedQuests: json['totalCompletedQuests'] as int? ?? 0,
+      completedSpecialQuests: json['completedSpecialQuests'] as int? ?? 0,
+      perfectWeeks: json['perfectWeeks'] as int? ?? 0,
+      currentWeekCompletedMainDays:
+          json['currentWeekCompletedMainDays'] as int? ?? 0,
+      currentWeekKey: json['currentWeekKey'] as String? ?? '',
+      unlockedShadowIds:
+          (json['unlockedShadowIds'] as List<Object?>? ?? const <Object?>[])
+              .map((item) => item as String)
+              .toList(),
+      lastUnlockedShadowId: json['lastUnlockedShadowId'] as String? ?? '',
     );
   }
 }

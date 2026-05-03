@@ -27,6 +27,7 @@ class HomeController extends ChangeNotifier {
   int _previousIndex = 0;
   int? _levelUpNotice;
   String? _rewardNotice;
+  String? _pendingUnlockedShadowId;
   Timer? _levelUpTimer;
   Timer? _rewardNoticeTimer;
 
@@ -35,6 +36,7 @@ class HomeController extends ChangeNotifier {
   int get previousIndex => _previousIndex;
   int? get levelUpNotice => _levelUpNotice;
   String? get rewardNotice => _rewardNotice;
+  String? get pendingUnlockedShadowId => _pendingUnlockedShadowId;
   PlayerState? get playerState => _playerState;
 
   Future<void> load() async {
@@ -168,17 +170,37 @@ class HomeController extends ChangeNotifier {
     _selectedIndex = 0;
     _previousIndex = 0;
     _levelUpNotice = null;
+    _pendingUnlockedShadowId = null;
     notifyListeners();
   }
 
   Future<void> _applyUpdate(PlayerSystemUpdate update) async {
     await _persist(update.state);
+    if (update.state.lastUnlockedShadowId.isNotEmpty &&
+        update.state.lastUnlockedShadowId != _pendingUnlockedShadowId) {
+      _pendingUnlockedShadowId = update.state.lastUnlockedShadowId;
+      notifyListeners();
+    }
     if (update.levelUp != null) {
       _showLevelUp(update.levelUp!);
+    }
+    if (update.classChange != null) {
+      _showRewardNotice('Clase del sistema actualizada: ${update.classChange}');
     }
     for (final notice in update.notices) {
       _showRewardNotice(notice);
     }
+  }
+
+  Future<void> clearUnlockedShadowNotice() async {
+    final state = _playerState;
+    if (_pendingUnlockedShadowId == null || state == null) {
+      return;
+    }
+    _pendingUnlockedShadowId = null;
+    _playerState = state.copyWith(lastUnlockedShadowId: '');
+    await _storage.save(_playerState!);
+    notifyListeners();
   }
 
   Future<void> _persist(PlayerState state) async {
@@ -195,12 +217,18 @@ class HomeController extends ChangeNotifier {
 
     try {
       final snapshot = await apiClient.fetchSnapshot();
+      final remoteProfile = snapshot.profile;
+      final localProfile = fallback.profile;
+      final mergedProfile = localProfile.copyWith(
+        alias: remoteProfile.alias,
+        avatarUrl: remoteProfile.avatarUrl.isNotEmpty
+            ? remoteProfile.avatarUrl
+            : localProfile.avatarUrl,
+        avatarImageBase64: localProfile.avatarImageBase64,
+      );
+
       return fallback.copyWith(
-        profile: snapshot.profile,
-        selectedStageIndex: snapshot.selectedStageIndex,
-        quests: snapshot.quests,
-        inventory: snapshot.inventory,
-        completedDays: snapshot.completedDays,
+        profile: mergedProfile,
       );
     } catch (_) {
       return fallback;

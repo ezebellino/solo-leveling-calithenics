@@ -1,5 +1,9 @@
 import 'dart:math' as math;
 
+import '../../shadows/application/shadow_unlock_evaluator.dart';
+import '../../shadows/domain/shadow_catalog.dart';
+import '../../shadows/domain/shadow_entity.dart';
+import '../../shadows/domain/shadow_progress_snapshot.dart';
 import 'daily_quest.dart';
 import 'hunter_profile.dart';
 import 'player_state.dart';
@@ -9,11 +13,13 @@ class PlayerSystemUpdate {
   const PlayerSystemUpdate({
     required this.state,
     this.levelUp,
+    this.classChange,
     this.notices = const [],
   });
 
   final PlayerState state;
   final int? levelUp;
+  final String? classChange;
   final List<String> notices;
 }
 
@@ -42,6 +48,13 @@ class PlayerSystemService {
       completedDays: 0,
       xpBoostArmed: false,
       lastStreakCreditDate: '',
+      totalCompletedQuests: 0,
+      completedSpecialQuests: 0,
+      perfectWeeks: 0,
+      currentWeekCompletedMainDays: 0,
+      currentWeekKey: _weekKey(current),
+      unlockedShadowIds: const <String>[],
+      lastUnlockedShadowId: '',
     );
   }
 
@@ -53,13 +66,18 @@ class PlayerSystemService {
     final current = now ?? DateTime.now();
     final today = _todayKey(current);
     final week = _weekKey(current);
-    if (state.lastQuestRefresh == today && state.weeklySpecialWeekKey == week) {
+    if (state.lastQuestRefresh == today &&
+        state.weeklySpecialWeekKey == week &&
+        state.currentWeekKey == week) {
       return PlayerSystemUpdate(state: state);
     }
 
     var profile = state.profile;
     final inventory = Map<String, int>.from(state.inventory);
     final notices = <String>[];
+    var perfectWeeks = state.perfectWeeks;
+    var currentWeekCompletedMainDays = state.currentWeekCompletedMainDays;
+    var currentWeekKey = state.currentWeekKey;
 
     if (state.lastQuestRefresh != today &&
         state.quests.isNotEmpty &&
@@ -71,6 +89,14 @@ class PlayerSystemService {
       } else {
         profile = profile.copyWith(streakDays: 0);
       }
+    }
+
+    if (state.currentWeekKey != week) {
+      if (state.currentWeekKey.isNotEmpty && state.currentWeekCompletedMainDays >= 5) {
+        perfectWeeks += 1;
+      }
+      currentWeekCompletedMainDays = 0;
+      currentWeekKey = week;
     }
 
     return PlayerSystemUpdate(
@@ -87,6 +113,9 @@ class PlayerSystemService {
         inventory: inventory,
         xpBoostArmed: false,
         lastStreakCreditDate: state.lastStreakCreditDate,
+        perfectWeeks: perfectWeeks,
+        currentWeekCompletedMainDays: currentWeekCompletedMainDays,
+        currentWeekKey: currentWeekKey,
       ),
       notices: notices,
     );
@@ -121,13 +150,19 @@ class PlayerSystemService {
 
     var profile = state.profile;
     final previousLevel = profile.level;
+    final previousClass = profile.title;
     var completedDays = state.completedDays;
     final inventory = Map<String, int>.from(state.inventory);
     var xpBoostArmed = state.xpBoostArmed;
     var lastStreakCreditDate = state.lastStreakCreditDate;
+    var totalCompletedQuests = state.totalCompletedQuests;
+    var currentWeekCompletedMainDays = state.currentWeekCompletedMainDays;
+    var unlockedShadowIds = List<String>.from(state.unlockedShadowIds);
+    var lastUnlockedShadowId = state.lastUnlockedShadowId;
     final notices = <String>[];
 
     if (!previous.isCompleted && currentQuest.isCompleted) {
+      totalCompletedQuests += 1;
       final rewardXp = xpBoostArmed ? (currentQuest.rewardXp * 1.2).round() : currentQuest.rewardXp;
       final shouldCreditDay =
           state.quests.isNotEmpty &&
@@ -147,6 +182,7 @@ class PlayerSystemService {
 
       if (shouldCreditDay) {
         completedDays += 1;
+        currentWeekCompletedMainDays += 1;
         lastStreakCreditDate = _todayKey(current);
         final chestReward = _awardChestReward(completedDays, inventory);
         if (chestReward != null) {
@@ -158,6 +194,27 @@ class PlayerSystemService {
         profile = _applyQuestReward(profile, 40);
         notices.add('Bonus diario completo: +40 XP');
       }
+
+      final unlockedShadows = _evaluateNewShadows(
+        profile: profile,
+        completedDays: completedDays,
+        totalCompletedQuests: totalCompletedQuests,
+        completedSpecialQuests: state.completedSpecialQuests,
+        perfectWeeks: state.perfectWeeks,
+        unlockedShadowIds: state.unlockedShadowIds,
+      );
+      if (unlockedShadows.isNotEmpty) {
+        unlockedShadowIds = [
+          ...unlockedShadowIds,
+          ...unlockedShadows.map((shadow) => shadow.id),
+        ];
+        lastUnlockedShadowId = unlockedShadows.last.id;
+        notices.addAll(
+          unlockedShadows.map(
+            (shadow) => 'Nueva sombra obtenida: ${shadow.name}',
+          ),
+        );
+      }
     }
 
     return PlayerSystemUpdate(
@@ -168,8 +225,13 @@ class PlayerSystemService {
         completedDays: completedDays,
         xpBoostArmed: xpBoostArmed,
         lastStreakCreditDate: lastStreakCreditDate,
+        totalCompletedQuests: totalCompletedQuests,
+        currentWeekCompletedMainDays: currentWeekCompletedMainDays,
+        unlockedShadowIds: unlockedShadowIds,
+        lastUnlockedShadowId: lastUnlockedShadowId,
       ),
       levelUp: profile.level > previousLevel ? profile.level : null,
+      classChange: profile.title != previousClass ? profile.title : null,
       notices: notices,
     );
   }
@@ -185,14 +247,42 @@ class PlayerSystemService {
 
     var profile = state.profile;
     final previousLevel = profile.level;
+    final previousClass = profile.title;
     final notices = <String>[];
     var xpBoostArmed = state.xpBoostArmed;
+    var totalCompletedQuests = state.totalCompletedQuests;
+    var completedSpecialQuests = state.completedSpecialQuests;
+    var unlockedShadowIds = List<String>.from(state.unlockedShadowIds);
+    var lastUnlockedShadowId = state.lastUnlockedShadowId;
 
     if (!special.isCompleted && updatedSpecial.isCompleted) {
+      totalCompletedQuests += 1;
+      completedSpecialQuests += 1;
       final rewardXp = xpBoostArmed ? (updatedSpecial.rewardXp * 1.2).round() : updatedSpecial.rewardXp;
       profile = _applyQuestReward(profile, rewardXp);
       notices.add('Quest especial completada: +$rewardXp XP');
       xpBoostArmed = false;
+
+      final unlockedShadows = _evaluateNewShadows(
+        profile: profile,
+        completedDays: state.completedDays,
+        totalCompletedQuests: totalCompletedQuests,
+        completedSpecialQuests: completedSpecialQuests,
+        perfectWeeks: state.perfectWeeks,
+        unlockedShadowIds: state.unlockedShadowIds,
+      );
+      if (unlockedShadows.isNotEmpty) {
+        unlockedShadowIds = [
+          ...unlockedShadowIds,
+          ...unlockedShadows.map((shadow) => shadow.id),
+        ];
+        lastUnlockedShadowId = unlockedShadows.last.id;
+        notices.addAll(
+          unlockedShadows.map(
+            (shadow) => 'Nueva sombra obtenida: ${shadow.name}',
+          ),
+        );
+      }
     }
 
     return PlayerSystemUpdate(
@@ -201,8 +291,13 @@ class PlayerSystemService {
         weeklySpecialQuest: updatedSpecial,
         weeklySpecialStatus: updatedSpecial.isCompleted ? 'completed' : state.weeklySpecialStatus,
         xpBoostArmed: xpBoostArmed,
+        totalCompletedQuests: totalCompletedQuests,
+        completedSpecialQuests: completedSpecialQuests,
+        unlockedShadowIds: unlockedShadowIds,
+        lastUnlockedShadowId: lastUnlockedShadowId,
       ),
       levelUp: profile.level > previousLevel ? profile.level : null,
+      classChange: profile.title != previousClass ? profile.title : null,
       notices: notices,
     );
   }
@@ -269,6 +364,25 @@ class PlayerSystemService {
       state: initialState(now: now),
       notices: const ['Progreso reiniciado desde cero'],
     );
+  }
+
+  String classForLevel(int level) {
+    if (level >= 70) {
+      return 'Superhumano';
+    }
+    if (level >= 50) {
+      return 'Ascendido';
+    }
+    if (level >= 35) {
+      return 'Calistenico';
+    }
+    if (level >= 20) {
+      return 'Disciplinado';
+    }
+    if (level >= 10) {
+      return 'Despierto';
+    }
+    return 'Humano novato';
   }
 
   List<WorkoutDay> buildWeeklyPlan(int stageIndex) {
@@ -349,6 +463,7 @@ class PlayerSystemService {
     }
 
     return profile.copyWith(
+      title: classForLevel(level),
       level: level,
       currentXp: currentXp,
       nextLevelXp: nextLevelXp,
@@ -381,6 +496,30 @@ class PlayerSystemService {
     }
 
     return math.max(1, (quest.target / 4).round());
+  }
+
+  List<ShadowEntity> _evaluateNewShadows({
+    required HunterProfile profile,
+    required int completedDays,
+    required int totalCompletedQuests,
+    required int completedSpecialQuests,
+    required int perfectWeeks,
+    required List<String> unlockedShadowIds,
+  }) {
+    final progress = ShadowProgressSnapshot(
+      completedMainDays: completedDays,
+      streakDays: profile.streakDays,
+      totalCompletedQuests: totalCompletedQuests,
+      completedSpecialQuests: completedSpecialQuests,
+      perfectWeeks: perfectWeeks,
+      level: profile.level,
+      unlockedShadowIds: unlockedShadowIds,
+    );
+
+    return const ShadowUnlockEvaluator().evaluate(
+      progress: progress,
+      catalog: ShadowCatalog.initialRoster,
+    );
   }
 
   List<DailyQuest> _buildQuestsForStage(int stageIndex) {
