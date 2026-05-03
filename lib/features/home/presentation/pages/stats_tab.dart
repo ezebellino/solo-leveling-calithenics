@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/hunter_profile.dart';
 import '../../domain/training_path.dart';
+import '../../../shadows/presentation/widgets/shadows_gallery_panel.dart';
 import '../widgets/holographic_panel.dart';
 import '../widgets/screen_frame.dart';
 import '../widgets/section_palette.dart';
@@ -14,6 +15,8 @@ class StatsTab extends StatelessWidget {
     required this.profile,
     required this.trainingPath,
     required this.selectedStageIndex,
+    required this.unlockedShadowIds,
+    required this.lastUnlockedShadowId,
     required this.palette,
     super.key,
   });
@@ -21,6 +24,8 @@ class StatsTab extends StatelessWidget {
   final HunterProfile profile;
   final TrainingPath trainingPath;
   final int selectedStageIndex;
+  final List<String> unlockedShadowIds;
+  final String lastUnlockedShadowId;
   final SectionPalette palette;
 
   @override
@@ -137,6 +142,12 @@ class StatsTab extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 18),
+        ShadowsGalleryPanel(
+          unlockedShadowIds: unlockedShadowIds,
+          lastUnlockedShadowId: lastUnlockedShadowId,
+          palette: palette,
         ),
       ],
     );

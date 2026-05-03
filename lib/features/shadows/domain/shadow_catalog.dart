@@ -17,10 +17,12 @@ class ShadowCatalog {
       shadow: ShadowEntity(
         id: 'igris',
         name: 'Igris',
-        title: 'Blood-Red Commander',
-        description: 'A disciplined duelist earned through the first week of consistency.',
-        flavorText: 'His blade only answers hunters who prove they can show up again tomorrow.',
-        unlockHint: 'Complete 7 main quest days to awaken Igris.',
+        title: 'Caballero Sombra',
+        description:
+            'Un duelista disciplinado que despierta al completar la primera semana de constancia.',
+        flavorText:
+            'Su espada solo responde a jugadores capaces de volver a presentarse manana.',
+        unlockHint: 'Completa 7 dias de mision principal para despertar a Igris.',
         rarity: ShadowRarity.epic,
         assetPath: 'assets/shadows/Igris-Card.webp',
         borderTheme: ShadowBorderTheme(
@@ -37,10 +39,13 @@ class ShadowCatalog {
       shadow: ShadowEntity(
         id: 'tank',
         name: 'Tank',
-        title: 'Feral Vanguard',
-        description: 'A brutal frontliner awarded for holding momentum beyond the first unlock.',
-        flavorText: 'Tank crashes forward when discipline stops feeling optional and starts feeling natural.',
-        unlockHint: 'Reach 14 main quest days, a 7-day streak, and 21 total completed quests.',
+        title: 'Muro Inquebrantable',
+        description:
+            'El guardian que aparece cuando la disciplina deja de sentirse opcional.',
+        flavorText:
+            'Tank avanza cuando el impulso ya no depende de la motivacion, sino del habito.',
+        unlockHint:
+            'Llega a 14 dias de mision principal, 7 dias de racha y 21 misiones completadas.',
         rarity: ShadowRarity.epic,
         assetPath: 'assets/shadows/Tank-Card.webp',
         borderTheme: ShadowBorderTheme(
@@ -59,10 +64,13 @@ class ShadowCatalog {
       shadow: ShadowEntity(
         id: 'iron',
         name: 'Iron',
-        title: 'Steel Bulwark',
-        description: 'A dependable shield unlocked after clearing special assignments.',
-        flavorText: 'Iron stands where weaker habits break, turning punishment into momentum.',
-        unlockHint: 'Clear 21 main quest days, 1 special quest, and reach level 10.',
+        title: 'Titan de Acero',
+        description:
+            'Un escudo confiable que solo aparece cuando superas encargos del Sistema.',
+        flavorText:
+            'Iron se planta donde los habitos debiles se rompen y convierte castigo en avance.',
+        unlockHint:
+            'Completa 21 dias principales, 1 quest especial y alcanza el nivel 10.',
         rarity: ShadowRarity.legendary,
         assetPath: 'assets/shadows/Iron-Card.webp',
         borderTheme: ShadowBorderTheme(
@@ -81,10 +89,13 @@ class ShadowCatalog {
       shadow: ShadowEntity(
         id: 'tusk',
         name: 'Tusk',
-        title: 'Arcane Artillery',
-        description: 'A high-output caster reserved for players with deeper quest volume.',
-        flavorText: 'Every completed session feeds Tusk another spell worth fearing.',
-        unlockHint: 'Complete 30 main quest days, 45 total quests, and reach level 18.',
+        title: 'General Orco',
+        description:
+            'Un artillero oscuro reservado para jugadores con volumen real de entrenamiento.',
+        flavorText:
+            'Cada sesion completada alimenta a Tusk con otro hechizo digno de temor.',
+        unlockHint:
+            'Completa 30 dias principales, 45 misiones totales y alcanza el nivel 18.',
         rarity: ShadowRarity.legendary,
         assetPath: 'assets/shadows/Tusk-Card.webp',
         borderTheme: ShadowBorderTheme(
@@ -103,10 +114,13 @@ class ShadowCatalog {
       shadow: ShadowEntity(
         id: 'beru',
         name: 'Beru',
-        title: 'Predator King',
-        description: 'A ruthless apex shadow for players who sustain elite weekly execution.',
-        flavorText: 'Beru emerges when your routine stops surviving the week and starts devouring it.',
-        unlockHint: 'Reach 45 main quest days, 3 special clears, 2 perfect weeks, and level 28.',
+        title: 'Rey Hormiga',
+        description:
+            'Una sombra apex para jugadores capaces de sostener semanas realmente elite.',
+        flavorText:
+            'Beru emerge cuando tu rutina deja de sobrevivir la semana y empieza a devorarla.',
+        unlockHint:
+            'Llega a 45 dias principales, 3 especiales, 2 semanas perfectas y nivel 28.',
         rarity: ShadowRarity.mythic,
         assetPath: 'assets/shadows/Beru-Card.webp',
         borderTheme: ShadowBorderTheme(
@@ -126,10 +140,13 @@ class ShadowCatalog {
       shadow: ShadowEntity(
         id: 'bellion',
         name: 'Bellion',
-        title: 'Grand Marshal',
-        description: 'The top commander, reserved for late-game discipline and total progression.',
-        flavorText: 'Bellion kneels only to a ruler whose consistency has become identity.',
-        unlockHint: 'Complete 60 main quest days, 90 total quests, 4 perfect weeks, and reach level 40.',
+        title: 'Monarca de la Conquista',
+        description:
+            'El comandante supremo, reservado para una disciplina de largo plazo.',
+        flavorText:
+            'Bellion solo se inclina ante un jugador cuya constancia ya se volvio identidad.',
+        unlockHint:
+            'Completa 60 dias principales, 90 misiones, 4 semanas perfectas y nivel 40.',
         rarity: ShadowRarity.mythic,
         assetPath: 'assets/shadows/Bellion-Card.webp',
         borderTheme: ShadowBorderTheme(

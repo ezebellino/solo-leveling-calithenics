@@ -7,6 +7,9 @@ import '../../domain/hunter_profile.dart';
 import '../../domain/player_system_service.dart';
 import '../../domain/training_path.dart';
 import '../../domain/workout_day.dart';
+import '../../../shadows/domain/shadow_catalog.dart';
+import '../../../shadows/domain/shadow_entity.dart';
+import '../../../shadows/presentation/widgets/shadow_unlock_overlay.dart';
 import '../controllers/home_controller.dart';
 import 'hunter_tab.dart';
 import 'quest_tab.dart';
@@ -62,7 +65,7 @@ class _HomePageState extends State<HomePage> {
     avatarUrl: '',
     avatarImageBase64: '',
     rank: 'E-Rank',
-    title: 'Jugador de calistenia',
+    title: 'Humano novato',
     level: 1,
     currentXp: 0,
     nextLevelXp: 120,
@@ -165,6 +168,24 @@ class _HomePageState extends State<HomePage> {
       _controller.playerState?.weeklySpecialStatus ?? 'pending';
   Map<String, int> get _inventory =>
       _controller.playerState?.inventory ?? const {};
+  List<String> get _unlockedShadowIds =>
+      _controller.playerState?.unlockedShadowIds ?? const <String>[];
+  String get _lastUnlockedShadowId =>
+      _controller.playerState?.lastUnlockedShadowId ?? '';
+  ShadowEntity? get _pendingUnlockedShadow {
+    final shadowId = _controller.pendingUnlockedShadowId;
+    if (shadowId == null || shadowId.isEmpty) {
+      return null;
+    }
+
+    for (final entry in ShadowCatalog.initialRoster) {
+      if (entry.shadow.id == shadowId) {
+        return entry.shadow;
+      }
+    }
+
+    return null;
+  }
   bool get _xpBoostArmed => _controller.playerState?.xpBoostArmed ?? false;
   bool get _playerAccepted => _controller.playerState?.playerAccepted ?? false;
   bool get _jobChanged => _controller.playerState?.jobChanged ?? false;
@@ -201,6 +222,7 @@ class _HomePageState extends State<HomePage> {
 
         final selectedIndex = _controller.selectedIndex;
         final previousIndex = _controller.previousIndex;
+        final unlockedShadow = _pendingUnlockedShadow;
 
         return Scaffold(
           body: Stack(
@@ -267,11 +289,11 @@ class _HomePageState extends State<HomePage> {
                                 )
                               : NotificationPanel(
                                   key: const ValueKey('job-change'),
-                                  title: 'Notificacion',
+                                  title: 'Asignacion de clase',
                                   lines: const [
-                                    'Tu clase ha cambiado.',
-                                    '[ necromancer ]',
-                                    'El Sistema reconoce tu disciplina como [ shadow monarch ].',
+                                    'Clase inicial asignada por el Sistema.',
+                                    '[ humano novato ]',
+                                    'Tu progreso fisico y tu disciplina definiran tu proxima evolucion.',
                                   ],
                                   ctaLabel: '[ Continuar ]',
                                   emphasisColor: const Color(0xFF25F3B4),
@@ -310,6 +332,23 @@ class _HomePageState extends State<HomePage> {
                       message: _controller.rewardNotice!,
                       secondary: _paletteForIndex(selectedIndex).secondary,
                       highlight: _paletteForIndex(selectedIndex).highlight,
+                    ),
+                  ),
+                ),
+              if (unlockedShadow != null && _playerAccepted && _jobChanged)
+                Positioned.fill(
+                  child: Container(
+                    color: const Color(0xC4060A10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 28,
+                    ),
+                    child: Center(
+                      child: ShadowUnlockOverlay(
+                        shadow: unlockedShadow,
+                        palette: _paletteForIndex(selectedIndex),
+                        onDismiss: _controller.clearUnlockedShadowNotice,
+                      ),
                     ),
                   ),
                 ),
@@ -362,11 +401,13 @@ class _HomePageState extends State<HomePage> {
         );
       case 2:
         return StatsTab(
-          profile: _profileState,
-          trainingPath: _trainingPath,
-          selectedStageIndex: _selectedStageIndex,
-          palette: _statsPalette,
-        );
+            profile: _profileState,
+            trainingPath: _trainingPath,
+            selectedStageIndex: _selectedStageIndex,
+            unlockedShadowIds: _unlockedShadowIds,
+            lastUnlockedShadowId: _lastUnlockedShadowId,
+            palette: _statsPalette,
+          );
       case 3:
         return HunterTab(
           profile: _profileState,
