@@ -15,6 +15,7 @@ import 'hunter_tab.dart';
 import 'quest_tab.dart';
 import 'stats_tab.dart';
 import 'system_tab.dart';
+import '../widgets/chest_reward_overlay.dart';
 import '../widgets/hud_navigation_bar.dart';
 import '../widgets/level_up_overlay.dart';
 import '../widgets/notification_panel.dart';
@@ -172,6 +173,7 @@ class _HomePageState extends State<HomePage> {
       _controller.playerState?.unlockedShadowIds ?? const <String>[];
   String get _lastUnlockedShadowId =>
       _controller.playerState?.lastUnlockedShadowId ?? '';
+  List<String>? get _pendingChestRewards => _controller.pendingChestRewards;
   ShadowEntity? get _pendingUnlockedShadow {
     final shadowId = _controller.pendingUnlockedShadowId;
     if (shadowId == null || shadowId.isEmpty) {
@@ -223,6 +225,8 @@ class _HomePageState extends State<HomePage> {
         final selectedIndex = _controller.selectedIndex;
         final previousIndex = _controller.previousIndex;
         final unlockedShadow = _pendingUnlockedShadow;
+        final chestRewards = _pendingChestRewards;
+        final isSystemOverlayActive = unlockedShadow != null || chestRewards != null;
 
         return Scaffold(
           body: Stack(
@@ -322,7 +326,10 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
-              if (_controller.rewardNotice != null && _playerAccepted && _jobChanged)
+              if (_controller.rewardNotice != null &&
+                  _playerAccepted &&
+                  _jobChanged &&
+                  !isSystemOverlayActive)
                 Positioned(
                   left: 24,
                   right: 24,
@@ -332,6 +339,26 @@ class _HomePageState extends State<HomePage> {
                       message: _controller.rewardNotice!,
                       secondary: _paletteForIndex(selectedIndex).secondary,
                       highlight: _paletteForIndex(selectedIndex).highlight,
+                    ),
+                  ),
+                ),
+              if (chestRewards != null &&
+                  unlockedShadow == null &&
+                  _playerAccepted &&
+                  _jobChanged)
+                Positioned.fill(
+                  child: Container(
+                    color: const Color(0xC4060A10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 28,
+                    ),
+                    child: Center(
+                      child: ChestRewardOverlay(
+                        rewards: chestRewards,
+                        palette: _paletteForIndex(selectedIndex),
+                        onDismiss: _controller.clearChestRewardNotice,
+                      ),
                     ),
                   ),
                 ),

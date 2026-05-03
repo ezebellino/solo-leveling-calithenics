@@ -28,6 +28,7 @@ class HomeController extends ChangeNotifier {
   int? _levelUpNotice;
   String? _rewardNotice;
   String? _pendingUnlockedShadowId;
+  List<String>? _pendingChestRewards;
   Timer? _levelUpTimer;
   Timer? _rewardNoticeTimer;
 
@@ -37,6 +38,7 @@ class HomeController extends ChangeNotifier {
   int? get levelUpNotice => _levelUpNotice;
   String? get rewardNotice => _rewardNotice;
   String? get pendingUnlockedShadowId => _pendingUnlockedShadowId;
+  List<String>? get pendingChestRewards => _pendingChestRewards;
   PlayerState? get playerState => _playerState;
 
   Future<void> load() async {
@@ -47,7 +49,7 @@ class HomeController extends ChangeNotifier {
     notifyListeners();
 
     for (final notice in hydrated.notices) {
-      _showRewardNotice(notice);
+      _handleNotice(notice);
     }
     await _storage.save(_playerState!);
   }
@@ -188,7 +190,7 @@ class HomeController extends ChangeNotifier {
       _showRewardNotice('Clase del sistema actualizada: ${update.classChange}');
     }
     for (final notice in update.notices) {
-      _showRewardNotice(notice);
+      _handleNotice(notice);
     }
   }
 
@@ -200,6 +202,14 @@ class HomeController extends ChangeNotifier {
     _pendingUnlockedShadowId = null;
     _playerState = state.copyWith(lastUnlockedShadowId: '');
     await _storage.save(_playerState!);
+    notifyListeners();
+  }
+
+  void clearChestRewardNotice() {
+    if (_pendingChestRewards == null) {
+      return;
+    }
+    _pendingChestRewards = null;
     notifyListeners();
   }
 
@@ -289,6 +299,38 @@ class HomeController extends ChangeNotifier {
         notifyListeners();
       }
     });
+  }
+
+  void _handleNotice(String message) {
+    final rewards = _parseChestRewards(message);
+    if (rewards != null) {
+      _pendingChestRewards = rewards;
+      notifyListeners();
+      return;
+    }
+    _showRewardNotice(message);
+  }
+
+  List<String>? _parseChestRewards(String message) {
+    if (!message.startsWith('Cofre ')) {
+      return null;
+    }
+
+    final separatorIndex = message.indexOf(':');
+    if (separatorIndex == -1 || separatorIndex >= message.length - 1) {
+      return const <String>['Recompensa del Sistema'];
+    }
+
+    final payload = message.substring(separatorIndex + 1).trim();
+    if (payload.isEmpty) {
+      return const <String>['Recompensa del Sistema'];
+    }
+
+    return payload
+        .split(' + ')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
   }
 
   @override

@@ -30,7 +30,7 @@ void main() {
 
       expect(unlocked.map((shadow) => shadow.id), ['igris']);
       expect(unlocked.single.flavorText, isNotEmpty);
-      expect(unlocked.single.unlockHint, contains('7 main quest days'));
+      expect(unlocked.single.unlockHint, contains('7 dias de mision principal'));
     });
 
     test('skips shadows that are already unlocked', () {
@@ -391,14 +391,74 @@ void main() {
       expect(controller.playerState!.totalCompletedQuests, 7);
       expect(controller.playerState!.unlockedShadowIds, contains('igris'));
       expect(controller.pendingUnlockedShadowId, 'igris');
+      expect(controller.pendingChestRewards, ['Freeze de racha x1']);
 
       await controller.clearUnlockedShadowNotice();
       await controller.changeStage(2);
 
       expect(controller.pendingUnlockedShadowId, isNull);
+      expect(controller.pendingChestRewards, ['Freeze de racha x1']);
       expect(controller.playerState!.lastUnlockedShadowId, isEmpty);
       expect(controller.playerState!.completedDays, 7);
       expect(controller.playerState!.unlockedShadowIds, contains('igris'));
+    });
+
+    test('queues chest rewards as overlay data instead of banner text', () async {
+      const baseProfile = HunterProfile(
+        alias: 'Chest Hunter',
+        avatarUrl: '',
+        avatarImageBase64: '',
+        rank: 'E-Rank',
+        title: 'Humano novato',
+        level: 1,
+        currentXp: 0,
+        nextLevelXp: 120,
+        streakDays: 2,
+        shadowArmy: 0,
+        strength: 1,
+        agility: 1,
+        endurance: 1,
+        discipline: 0,
+      );
+      final storage = _MemoryPlayerStateRepository();
+      const system = PlayerSystemService(baseProfile: baseProfile);
+      final initialState = system.initialState().copyWith(
+        completedDays: 2,
+        totalCompletedQuests: 2,
+        currentWeekCompletedMainDays: 2,
+        lastStreakCreditDate: '',
+      );
+      final primedQuest = initialState.quests.first.copyWith(
+        progress: initialState.quests.first.target - 1,
+      );
+      final localState = initialState.copyWith(
+        quests: [primedQuest, ...initialState.quests.skip(1)],
+      );
+      storage.state = localState;
+
+      final controller = HomeController(
+        storage: storage,
+        system: system,
+        apiClient: _FakeHomeApiClient(
+          snapshot: RemoteHomeSnapshot(
+            profile: localState.profile,
+            selectedStageIndex: localState.selectedStageIndex,
+            quests: localState.quests,
+            inventory: localState.inventory,
+            completedDays: localState.completedDays,
+          ),
+        ),
+      );
+
+      await controller.load();
+      await controller.advanceQuest(controller.playerState!.quests.first);
+
+      expect(controller.pendingChestRewards, ['Re-roll x1']);
+      expect(controller.rewardNotice, isNull);
+
+      controller.clearChestRewardNotice();
+
+      expect(controller.pendingChestRewards, isNull);
     });
   });
 }
