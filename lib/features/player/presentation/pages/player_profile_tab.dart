@@ -3,17 +3,17 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../domain/hunter_profile.dart';
-import '../../domain/training_path.dart';
+import '../../../home/domain/hunter_profile.dart';
+import '../../../home/domain/training_path.dart';
 import '../../../inventory/presentation/widgets/inventory_panel.dart';
-import '../widgets/holographic_panel.dart';
-import '../widgets/screen_frame.dart';
-import '../widgets/section_palette.dart';
-import '../widgets/system_badge.dart';
-import '../widgets/training_widgets.dart';
+import '../../../home/presentation/widgets/holographic_panel.dart';
+import '../../../home/presentation/widgets/screen_frame.dart';
+import '../../../home/presentation/widgets/section_palette.dart';
+import '../../../home/presentation/widgets/system_badge.dart';
+import '../../../home/presentation/widgets/training_widgets.dart';
 
-class HunterTab extends StatelessWidget {
-  const HunterTab({
+class PlayerProfileTab extends StatelessWidget {
+  const PlayerProfileTab({
     required this.profile,
     required this.inventory,
     required this.xpBoostArmed,

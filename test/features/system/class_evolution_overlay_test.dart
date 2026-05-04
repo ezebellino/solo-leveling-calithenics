@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solo_leveling_calisthenics/features/home/presentation/widgets/class_evolution_overlay.dart';
+import 'package:solo_leveling_calisthenics/features/system/presentation/widgets/system_class_evolution_overlay.dart';
 import 'package:solo_leveling_calisthenics/features/home/presentation/widgets/section_palette.dart';
 
 void main() {
@@ -15,7 +15,7 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: Center(
-            child: ClassEvolutionOverlay(
+            child: SystemClassEvolutionOverlay(
               previousClass: 'Humano novato',
               nextClass: 'Despierto',
               palette: palette,
@@ -45,7 +45,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: Center(
-            child: ClassEvolutionOverlay(
+            child: SystemClassEvolutionOverlay(
               previousClass: 'Humano novato',
               nextClass: 'Despierto',
               palette: palette,

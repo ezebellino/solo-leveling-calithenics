@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
-import '../../domain/daily_quest.dart';
-import '../../domain/hunter_profile.dart';
-import '../../domain/training_path.dart';
-import '../../domain/workout_day.dart';
+import '../../../home/domain/daily_quest.dart';
+import '../../../home/domain/hunter_profile.dart';
+import '../../../home/domain/training_path.dart';
+import '../../../home/domain/workout_day.dart';
 import '../../../quests/presentation/widgets/quest_card.dart';
-import '../widgets/holographic_panel.dart';
-import '../widgets/screen_frame.dart';
-import '../widgets/section_palette.dart';
-import '../widgets/stat_hex_tile.dart';
-import '../widgets/system_badge.dart';
-import '../widgets/training_widgets.dart';
+import '../../../home/presentation/widgets/holographic_panel.dart';
+import '../../../home/presentation/widgets/screen_frame.dart';
+import '../../../home/presentation/widgets/section_palette.dart';
+import '../../../home/presentation/widgets/stat_hex_tile.dart';
+import '../../../home/presentation/widgets/system_badge.dart';
+import '../../../home/presentation/widgets/training_widgets.dart';
 
 class SystemTab extends StatelessWidget {
   const SystemTab({

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solo_leveling_calisthenics/features/home/presentation/widgets/level_up_overlay.dart';
+import 'package:solo_leveling_calisthenics/features/system/presentation/widgets/system_level_up_overlay.dart';
 
 void main() {
   testWidgets('renders ceremonial level up content and continue action', (
@@ -10,7 +10,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: Center(
-            child: LevelUpOverlay(
+            child: SystemLevelUpOverlay(
               level: 8,
               primary: const Color(0xFF79E7FF),
               secondary: const Color(0xFF25F3B4),

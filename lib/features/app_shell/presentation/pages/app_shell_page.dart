@@ -13,9 +13,6 @@ import '../../../home/domain/player_system_service.dart';
 import '../../../home/domain/training_path.dart';
 import '../../../home/domain/workout_day.dart';
 import '../../../home/presentation/controllers/home_controller.dart';
-import '../../../home/presentation/pages/hunter_tab.dart';
-import '../../../home/presentation/pages/stats_tab.dart';
-import '../../../home/presentation/pages/system_tab.dart';
 import '../../../home/presentation/widgets/hud_navigation_bar.dart';
 import '../../../home/presentation/widgets/section_palette.dart';
 import '../../../inventory/application/inventory_action_handler.dart';
@@ -24,11 +21,14 @@ import '../../../inventory/presentation/widgets/chest_reward_overlay.dart';
 import '../../../player/application/bootstrap_player_controller.dart';
 import '../../../player/application/bootstrap_player_state.dart';
 import '../../../player/domain/player_snapshot.dart';
+import '../../../player/presentation/pages/player_profile_tab.dart';
+import '../../../player/presentation/pages/player_stats_tab.dart';
 import '../../../shadows/domain/shadow_catalog.dart';
 import '../../../shadows/domain/shadow_entity.dart';
 import '../../../shadows/presentation/widgets/shadow_unlock_overlay.dart';
 import '../../../system/application/system_overlay_controller.dart';
 import '../../../system/application/system_overlay_state.dart';
+import '../../../system/presentation/pages/system_tab.dart';
 import '../../../system/presentation/widgets/system_overlay_stack.dart';
 import '../../../quests/application/quest_action_handler.dart';
 import '../../../quests/application/quest_actions_controller.dart';
@@ -592,7 +592,7 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
           ),
         );
       case 2:
-        return StatsTab(
+        return PlayerStatsTab(
           profile: _profileState,
           trainingPath: _trainingPath,
           selectedStageIndex: _selectedStageIndex,
@@ -601,7 +601,7 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
           palette: _statsPalette,
         );
       case 3:
-        return HunterTab(
+        return PlayerProfileTab(
           profile: _profileState,
           inventory: _inventory,
           xpBoostArmed: _xpBoostArmed,
