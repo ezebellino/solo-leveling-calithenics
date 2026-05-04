@@ -3,10 +3,11 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from fastapi import HTTPException
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
-from app.database import Base, check_database_connection, engine
+from app.core.logging import logger
+from app.database import check_database_connection, engine
 from app.models import DailyQuest, InventoryItem, PlayerProgress, User, reconcile_default_data, seed_default_data
 from app.schemas import (
     BootstrapResponse,
@@ -22,35 +23,24 @@ from app.schemas import (
 
 
 def initialize_database() -> None:
-    Base.metadata.create_all(bind=engine)
-    _run_lightweight_migrations()
+    required_tables = {"daily_quests", "inventory_items", "player_progress", "users"}
+    try:
+        existing_tables = set(inspect(engine).get_table_names())
+    except Exception as exc:  # pragma: no cover - startup safety
+        logger.warning("database_schema_check_failed", extra={"detail": str(exc)})
+        return
+
+    missing_tables = sorted(required_tables - existing_tables)
+    if missing_tables:
+        logger.warning(
+            "database_schema_missing",
+            extra={"missing_tables": missing_tables},
+        )
+        return
+
     with Session(engine) as session:
         seed_default_data(session)
         reconcile_default_data(session)
-
-
-def _run_lightweight_migrations() -> None:
-    inspector = inspect(engine)
-    user_columns = {column["name"] for column in inspector.get_columns("users")}
-    player_progress_columns = {column["name"] for column in inspector.get_columns("player_progress")}
-    daily_quest_columns = {column["name"] for column in inspector.get_columns("daily_quests")}
-
-    with engine.begin() as connection:
-        if "avatar_url" not in user_columns:
-            connection.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(500) DEFAULT ''"))
-            connection.execute(text("UPDATE users SET avatar_url = '' WHERE avatar_url IS NULL"))
-
-        if "completed_days" not in player_progress_columns:
-            connection.execute(text("ALTER TABLE player_progress ADD COLUMN completed_days INTEGER DEFAULT 0"))
-            connection.execute(text("UPDATE player_progress SET completed_days = 0 WHERE completed_days IS NULL"))
-
-        if "progress" not in daily_quest_columns:
-            connection.execute(text("ALTER TABLE daily_quests ADD COLUMN progress INTEGER DEFAULT 0"))
-            connection.execute(text("UPDATE daily_quests SET progress = 0 WHERE progress IS NULL"))
-
-        if "target" not in daily_quest_columns:
-            connection.execute(text("ALTER TABLE daily_quests ADD COLUMN target INTEGER DEFAULT 1"))
-            connection.execute(text("UPDATE daily_quests SET target = 1 WHERE target IS NULL"))
 
 
 def build_database_status() -> DatabaseStatus:
@@ -60,6 +50,20 @@ def build_database_status() -> DatabaseStatus:
         engine=engine.dialect.name,
         detail=detail,
     )
+
+
+def class_for_level(level: int) -> str:
+    if level >= 70:
+        return "Superhumano"
+    if level >= 50:
+        return "Ascendido"
+    if level >= 35:
+        return "Calistenico"
+    if level >= 20:
+        return "Disciplinado"
+    if level >= 10:
+        return "Despierto"
+    return "Humano novato"
 
 
 def _get_default_user(session: Session) -> User:
@@ -83,7 +87,7 @@ def _serialize_player(user: User) -> PlayerSummary:
         alias=user.alias,
         avatarUrl=user.avatar_url,
         rank=user.rank,
-        title=user.stage_title,
+        title=class_for_level(progress.level),
         level=progress.level,
         currentXp=progress.current_xp,
         nextLevelXp=progress.next_level_xp,
