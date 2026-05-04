@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/logging/app_logger.dart';
+import '../../../player/domain/player_snapshot.dart';
 import '../../data/home_api_client.dart';
 import '../../data/local_player_state_repository.dart';
 import '../../domain/daily_quest.dart';
@@ -13,13 +15,16 @@ class HomeController extends ChangeNotifier {
     required LocalPlayerStateRepository storage,
     required PlayerSystemService system,
     HomeApiClient? apiClient,
+    AppLogger? logger,
   })  : _storage = storage,
         _system = system,
-        _apiClient = apiClient;
+        _apiClient = apiClient,
+        _logger = logger;
 
   final LocalPlayerStateRepository _storage;
   final PlayerSystemService _system;
   final HomeApiClient? _apiClient;
+  final AppLogger? _logger;
 
   PlayerState? _playerState;
   bool _isLoading = true;
@@ -43,17 +48,50 @@ class HomeController extends ChangeNotifier {
   List<String>? get pendingChestRewards => _pendingChestRewards;
   PlayerState? get playerState => _playerState;
 
-  Future<void> load() async {
-    final loaded = await _storage.load();
-    final hydrated = _system.hydrate(loaded);
-    _playerState = await _mergeRemoteSnapshot(hydrated.state);
-    _isLoading = false;
-    notifyListeners();
+  Future<void> load({PlayerSnapshot? bootstrapSnapshot}) async {
+    _logger?.info(
+      event: 'bootstrap_hydration_started',
+      source: 'home.controller',
+      context: <String, Object?>{
+        'hasBootstrapSnapshot': bootstrapSnapshot != null,
+      },
+    );
 
-    for (final notice in hydrated.notices) {
-      _handleNotice(notice);
+    try {
+      final loaded = await _storage.load();
+      final hydrated = _system.hydrate(loaded);
+      final nextState = bootstrapSnapshot == null
+          ? hydrated.state
+          : hydrated.state.withBootstrapSnapshot(bootstrapSnapshot);
+
+      _playerState = nextState;
+      _isLoading = false;
+      notifyListeners();
+
+      for (final notice in hydrated.notices) {
+        _handleNotice(notice);
+      }
+      await _storage.save(_playerState!);
+
+      _logger?.info(
+        event: 'bootstrap_hydration_succeeded',
+        source: 'home.controller',
+        context: <String, Object?>{
+          'alias': _playerState!.profile.alias,
+          'level': _playerState!.profile.level,
+          'completedDays': _playerState!.completedDays,
+        },
+      );
+    } catch (error) {
+      _logger?.error(
+        event: 'bootstrap_hydration_failed',
+        source: 'home.controller',
+        context: <String, Object?>{
+          'error': error.toString(),
+        },
+      );
+      rethrow;
     }
-    await _storage.save(_playerState!);
   }
 
   void selectTab(int index) {

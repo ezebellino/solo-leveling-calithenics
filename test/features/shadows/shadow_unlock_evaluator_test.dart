@@ -6,6 +6,7 @@ import 'package:solo_leveling_calisthenics/features/home/domain/hunter_profile.d
 import 'package:solo_leveling_calisthenics/features/home/domain/player_state.dart';
 import 'package:solo_leveling_calisthenics/features/home/domain/player_system_service.dart';
 import 'package:solo_leveling_calisthenics/features/home/presentation/controllers/home_controller.dart';
+import 'package:solo_leveling_calisthenics/features/player/domain/player_snapshot.dart';
 import 'package:solo_leveling_calisthenics/features/shadows/application/shadow_unlock_evaluator.dart';
 import 'package:solo_leveling_calisthenics/features/shadows/domain/shadow_catalog.dart';
 import 'package:solo_leveling_calisthenics/features/shadows/domain/shadow_progress_snapshot.dart';
@@ -327,6 +328,68 @@ void main() {
   });
 
   group('HomeController shadow sync', () {
+    test('hydrates local game state from bootstrap snapshot without replacing progression data', () async {
+      const baseProfile = HunterProfile(
+        alias: 'Local Hunter',
+        avatarUrl: '',
+        avatarImageBase64: '',
+        rank: 'E-Rank',
+        title: 'Humano novato',
+        level: 1,
+        currentXp: 0,
+        nextLevelXp: 120,
+        streakDays: 4,
+        shadowArmy: 0,
+        strength: 1,
+        agility: 1,
+        endurance: 1,
+        discipline: 0,
+      );
+      final storage = _MemoryPlayerStateRepository();
+      const system = PlayerSystemService(baseProfile: baseProfile);
+      final localState = system.initialState().copyWith(
+        selectedStageIndex: 3,
+        completedDays: 5,
+        quests: [
+          system.initialState().quests.first.copyWith(progress: 2),
+          ...system.initialState().quests.skip(1),
+        ],
+        inventory: const <String, int>{
+          'freeze': 2,
+          'xp_boost': 1,
+          'reroll': 0,
+        },
+      );
+      storage.state = localState;
+      const bootstrapSnapshot = PlayerSnapshot(
+        alias: 'Remote Hunter',
+        rank: 'D-Rank',
+        title: 'Despierto',
+        level: 12,
+        currentXp: 45,
+        nextLevelXp: 240,
+        completedDays: 8,
+      );
+
+      final controller = HomeController(
+        storage: storage,
+        system: system,
+      );
+
+      await controller.load(bootstrapSnapshot: bootstrapSnapshot);
+
+      expect(controller.playerState!.profile.alias, 'Remote Hunter');
+      expect(controller.playerState!.profile.rank, 'D-Rank');
+      expect(controller.playerState!.profile.title, 'Despierto');
+      expect(controller.playerState!.profile.level, 12);
+      expect(controller.playerState!.profile.currentXp, 45);
+      expect(controller.playerState!.profile.nextLevelXp, 240);
+      expect(controller.playerState!.completedDays, 8);
+      expect(controller.playerState!.selectedStageIndex, 3);
+      expect(controller.playerState!.quests.first.progress, 2);
+      expect(controller.playerState!.inventory['freeze'], 2);
+    });
+
     test('keeps local progression authoritative and clears stale unlock replay', () async {
       const baseProfile = HunterProfile(
         alias: 'Local Hunter',

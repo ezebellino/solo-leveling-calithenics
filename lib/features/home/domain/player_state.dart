@@ -1,5 +1,6 @@
 import 'daily_quest.dart';
 import 'hunter_profile.dart';
+import '../../player/domain/player_snapshot.dart';
 
 class PlayerState {
   const PlayerState({
@@ -93,6 +94,20 @@ class PlayerState {
       unlockedShadowIds: unlockedShadowIds ?? this.unlockedShadowIds,
       lastUnlockedShadowId:
           lastUnlockedShadowId ?? this.lastUnlockedShadowId,
+    );
+  }
+
+  PlayerState withBootstrapSnapshot(PlayerSnapshot snapshot) {
+    return copyWith(
+      profile: profile.copyWith(
+        alias: snapshot.alias,
+        rank: snapshot.rank,
+        title: snapshot.title,
+        level: snapshot.level,
+        currentXp: snapshot.currentXp,
+        nextLevelXp: snapshot.nextLevelXp,
+      ),
+      completedDays: snapshot.completedDays,
     );
   }
 

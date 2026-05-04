@@ -1,5 +1,10 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/logging/app_logger.dart';
+import '../../../../core/providers/core_providers.dart';
 import '../../data/home_api_client.dart';
 import '../../data/local_player_state_repository.dart';
 import '../../domain/daily_quest.dart';
@@ -7,6 +12,9 @@ import '../../domain/hunter_profile.dart';
 import '../../domain/player_system_service.dart';
 import '../../domain/training_path.dart';
 import '../../domain/workout_day.dart';
+import '../../../player/application/bootstrap_player_controller.dart';
+import '../../../player/application/bootstrap_player_state.dart';
+import '../../../player/domain/player_snapshot.dart';
 import '../../../shadows/domain/shadow_catalog.dart';
 import '../../../shadows/domain/shadow_entity.dart';
 import '../../../shadows/presentation/widgets/shadow_unlock_overlay.dart';
@@ -24,15 +32,14 @@ import '../widgets/reward_notice_banner.dart';
 import '../widgets/section_palette.dart';
 import '../widgets/system_backdrop.dart';
 
-class HomePage extends StatefulWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  static const _apiBaseUrl = 'https://backend-api-sync-v2-production.up.railway.app';
+class _HomePageState extends ConsumerState<HomePage> {
   static const _systemPalette = SectionPalette(
     primary: Color(0xFF79E7FF),
     secondary: Color(0xFF25F3B4),
@@ -159,24 +166,27 @@ class _HomePageState extends State<HomePage> {
     ],
   );
 
-  late final HomeController _controller;
+  HomeController? _controller;
+  late final AppLogger _logger;
+  late final ProviderSubscription<BootstrapPlayerState> _bootstrapSubscription;
+  String? _startupFailureMessage;
 
-  int get _selectedStageIndex => _controller.playerState?.selectedStageIndex ?? 1;
-  HunterProfile get _profileState => _controller.playerState?.profile ?? _profile;
+  int get _selectedStageIndex => _controller?.playerState?.selectedStageIndex ?? 1;
+  HunterProfile get _profileState => _controller?.playerState?.profile ?? _profile;
   List<DailyQuest> get _quests =>
-      _controller.playerState?.quests ?? _system.initialState().quests;
-  DailyQuest? get _weeklySpecialQuest => _controller.playerState?.weeklySpecialQuest;
+      _controller?.playerState?.quests ?? _system.initialState().quests;
+  DailyQuest? get _weeklySpecialQuest => _controller?.playerState?.weeklySpecialQuest;
   String get _weeklySpecialStatus =>
-      _controller.playerState?.weeklySpecialStatus ?? 'pending';
+      _controller?.playerState?.weeklySpecialStatus ?? 'pending';
   Map<String, int> get _inventory =>
-      _controller.playerState?.inventory ?? const {};
+      _controller?.playerState?.inventory ?? const {};
   List<String> get _unlockedShadowIds =>
-      _controller.playerState?.unlockedShadowIds ?? const <String>[];
+      _controller?.playerState?.unlockedShadowIds ?? const <String>[];
   String get _lastUnlockedShadowId =>
-      _controller.playerState?.lastUnlockedShadowId ?? '';
-  List<String>? get _pendingChestRewards => _controller.pendingChestRewards;
+      _controller?.playerState?.lastUnlockedShadowId ?? '';
+  List<String>? get _pendingChestRewards => _controller?.pendingChestRewards;
   ShadowEntity? get _pendingUnlockedShadow {
-    final shadowId = _controller.pendingUnlockedShadowId;
+    final shadowId = _controller?.pendingUnlockedShadowId;
     if (shadowId == null || shadowId.isEmpty) {
       return null;
     }
@@ -189,33 +199,46 @@ class _HomePageState extends State<HomePage> {
 
     return null;
   }
-  bool get _xpBoostArmed => _controller.playerState?.xpBoostArmed ?? false;
-  bool get _playerAccepted => _controller.playerState?.playerAccepted ?? false;
-  bool get _jobChanged => _controller.playerState?.jobChanged ?? false;
+  bool get _xpBoostArmed => _controller?.playerState?.xpBoostArmed ?? false;
+  bool get _playerAccepted => _controller?.playerState?.playerAccepted ?? false;
+  bool get _jobChanged => _controller?.playerState?.jobChanged ?? false;
   List<WorkoutDay> get _weeklyPlan => _system.buildWeeklyPlan(_selectedStageIndex);
 
   @override
   void initState() {
     super.initState();
-    _controller = HomeController(
-      storage: _storage,
-      system: _system,
-      apiClient: HomeApiClient(baseUrl: _apiBaseUrl),
-    )..load();
+    _logger = ref.read(appLoggerProvider);
+    _bootstrapSubscription = ref.listenManual<BootstrapPlayerState>(
+      bootstrapPlayerControllerProvider,
+      _handleBootstrapStateChanged,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _startBootstrapLoad(reason: 'initial');
+    });
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _bootstrapSubscription.close();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final bootstrapState = ref.watch(bootstrapPlayerControllerProvider);
+
+    if (_controller == null) {
+      return _buildBootstrapScaffold(bootstrapState);
+    }
+
     return ListenableBuilder(
-      listenable: _controller,
+      listenable: _controller!,
       builder: (context, _) {
-        if (_controller.isLoading) {
+        if (_controller!.isLoading) {
           return const Scaffold(
             body: Center(
               child: CircularProgressIndicator(),
@@ -223,12 +246,12 @@ class _HomePageState extends State<HomePage> {
           );
         }
 
-        final selectedIndex = _controller.selectedIndex;
-        final previousIndex = _controller.previousIndex;
+        final selectedIndex = _controller!.selectedIndex;
+        final previousIndex = _controller!.previousIndex;
         final unlockedShadow = _pendingUnlockedShadow;
         final chestRewards = _pendingChestRewards;
-        final pendingLevelUp = _controller.pendingLevelUp;
-        final pendingClassEvolution = _controller.pendingClassEvolution;
+        final pendingLevelUp = _controller!.pendingLevelUp;
+        final pendingClassEvolution = _controller!.pendingClassEvolution;
         final hasCeremonialOverlay =
             pendingClassEvolution != null ||
             unlockedShadow != null ||
@@ -296,7 +319,7 @@ class _HomePageState extends State<HomePage> {
                                   secondaryLabel: '[ Rechazar ]',
                                   ctaLabel: '[ Aceptar ]',
                                   onSecondary: () {},
-                                  onAccept: _controller.acceptPlayer,
+                                  onAccept: _controller!.acceptPlayer,
                                 )
                               : NotificationPanel(
                                   key: const ValueKey('job-change'),
@@ -308,7 +331,7 @@ class _HomePageState extends State<HomePage> {
                                   ],
                                   ctaLabel: '[ Continuar ]',
                                   emphasisColor: const Color(0xFF25F3B4),
-                                  onAccept: _controller.confirmJobChanged,
+                                  onAccept: _controller!.confirmJobChanged,
                                 ),
                         ),
                       ),
@@ -328,12 +351,12 @@ class _HomePageState extends State<HomePage> {
                         previousClass: pendingClassEvolution.previousClass,
                         nextClass: pendingClassEvolution.nextClass,
                         palette: _paletteForIndex(selectedIndex),
-                        onDismiss: _controller.clearClassEvolutionNotice,
+                        onDismiss: _controller!.clearClassEvolutionNotice,
                       ),
                     ),
                   ),
                 ),
-              if (_controller.rewardNotice != null &&
+              if (_controller!.rewardNotice != null &&
                   _playerAccepted &&
                   _jobChanged &&
                   !hasCeremonialOverlay)
@@ -343,7 +366,7 @@ class _HomePageState extends State<HomePage> {
                   top: 110,
                   child: IgnorePointer(
                     child: RewardNoticeBanner(
-                      message: _controller.rewardNotice!,
+                      message: _controller!.rewardNotice!,
                       secondary: _paletteForIndex(selectedIndex).secondary,
                       highlight: _paletteForIndex(selectedIndex).highlight,
                     ),
@@ -365,7 +388,7 @@ class _HomePageState extends State<HomePage> {
                       child: ChestRewardOverlay(
                         rewards: chestRewards,
                         palette: _paletteForIndex(selectedIndex),
-                        onDismiss: _controller.clearChestRewardNotice,
+                        onDismiss: _controller!.clearChestRewardNotice,
                       ),
                     ),
                   ),
@@ -385,7 +408,7 @@ class _HomePageState extends State<HomePage> {
                       child: ShadowUnlockOverlay(
                         shadow: unlockedShadow,
                         palette: _paletteForIndex(selectedIndex),
-                        onDismiss: _controller.clearUnlockedShadowNotice,
+                        onDismiss: _controller!.clearUnlockedShadowNotice,
                       ),
                     ),
                   ),
@@ -401,14 +424,14 @@ class _HomePageState extends State<HomePage> {
                     alignment: Alignment.center,
                     color: const Color(0xC4060A10),
                     padding: const EdgeInsets.symmetric(horizontal: 26),
-                    child: LevelUpOverlay(
-                      level: pendingLevelUp,
-                      primary: _paletteForIndex(selectedIndex).primary,
-                      secondary: _paletteForIndex(selectedIndex).secondary,
-                      onDismiss: _controller.clearLevelUpNotice,
+                      child: LevelUpOverlay(
+                        level: pendingLevelUp,
+                        primary: _paletteForIndex(selectedIndex).primary,
+                        secondary: _paletteForIndex(selectedIndex).secondary,
+                        onDismiss: _controller!.clearLevelUpNotice,
+                      ),
                     ),
                   ),
-                ),
             ],
           ),
           bottomNavigationBar: HudNavigationBar(
@@ -417,7 +440,7 @@ class _HomePageState extends State<HomePage> {
             primary: _paletteForIndex(selectedIndex).primary,
             secondary: _paletteForIndex(selectedIndex).secondary,
             highlight: _paletteForIndex(selectedIndex).highlight,
-            onTap: _controller.selectTab,
+            onTap: _controller!.selectTab,
           ),
         );
       },
@@ -437,8 +460,173 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _handleBootstrapStateChanged(
+    BootstrapPlayerState? previous,
+    BootstrapPlayerState next,
+  ) {
+    if (next.isLoading && previous?.isLoading != true) {
+      _logger.info(
+        event: 'bootstrap_loading_started',
+        source: 'home.page',
+      );
+    }
+
+    if (!next.isLoading &&
+        next.snapshot != null &&
+        previous?.snapshot != next.snapshot &&
+        _controller == null) {
+      _logger.info(
+        event: 'bootstrap_loading_succeeded',
+        source: 'home.page',
+        context: <String, Object?>{
+          'alias': next.snapshot!.alias,
+          'completedDays': next.snapshot!.completedDays,
+        },
+      );
+      unawaited(_initializeHomeController(next.snapshot!));
+    }
+
+    if (!next.isLoading &&
+        next.errorMessage != null &&
+        previous?.errorMessage != next.errorMessage) {
+      _logger.warning(
+        event: 'bootstrap_loading_failed',
+        source: 'home.page',
+        context: <String, Object?>{
+          'message': next.errorMessage,
+        },
+      );
+    }
+  }
+
+  void _startBootstrapLoad({required String reason}) {
+    if (_startupFailureMessage != null) {
+      setState(() {
+        _startupFailureMessage = null;
+      });
+    }
+    _logger.info(
+      event: 'bootstrap_load_requested',
+      source: 'home.page',
+      context: <String, Object?>{
+        'reason': reason,
+      },
+    );
+    ref.read(bootstrapPlayerControllerProvider.notifier).load();
+  }
+
+  Future<void> _initializeHomeController(PlayerSnapshot snapshot) async {
+    final controller = HomeController(
+      storage: _storage,
+      system: _system,
+      apiClient: HomeApiClient(baseUrl: ref.read(apiBaseUrlProvider)),
+      logger: _logger,
+    );
+
+    setState(() {
+      _controller = controller;
+    });
+
+    try {
+      await controller.load(bootstrapSnapshot: snapshot);
+    } catch (error) {
+      _logger.error(
+        event: 'home_controller_load_failed',
+        source: 'home.page',
+        context: <String, Object?>{
+          'error': error.toString(),
+        },
+      );
+      controller.dispose();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _controller = null;
+        _startupFailureMessage =
+            'No se pudo preparar el progreso local del jugador. Reintenta la sincronizacion.';
+      });
+    }
+  }
+
+  Widget _buildBootstrapScaffold(BootstrapPlayerState bootstrapState) {
+    final failureMessage = _startupFailureMessage ?? bootstrapState.errorMessage;
+    if (failureMessage != null && !bootstrapState.isLoading) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.sync_problem_rounded,
+                    size: 54,
+                    color: Color(0xFF79E7FF),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'No se pudo iniciar el Sistema',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    failureMessage,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      height: 1.45,
+                      color: Color(0xFFB7C7D9),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: () => _startBootstrapLoad(reason: 'retry'),
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Reintentar'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final message = bootstrapState.snapshot == null
+        ? 'Iniciando enlace con el Sistema...'
+        : 'Sincronizando progreso del jugador...';
+
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 18),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildCurrentTab() {
-    switch (_controller.selectedIndex) {
+    switch (_controller!.selectedIndex) {
       case 1:
         return QuestTab(
           profile: _profileState,
@@ -449,11 +637,11 @@ class _HomePageState extends State<HomePage> {
           xpBoostArmed: _xpBoostArmed,
           trainingPath: _trainingPath,
           selectedStageIndex: _selectedStageIndex,
-          onQuestAdvance: _controller.advanceQuest,
-          onSpecialAdvance: _controller.advanceSpecialQuest,
-          onSpecialDecision: _controller.decideSpecialQuest,
-          onUseXpBoost: _controller.useXpBoost,
-          onUseReroll: _controller.useReroll,
+          onQuestAdvance: _controller!.advanceQuest,
+          onSpecialAdvance: _controller!.advanceSpecialQuest,
+          onSpecialDecision: _controller!.decideSpecialQuest,
+          onUseXpBoost: _controller!.useXpBoost,
+          onUseReroll: _controller!.useReroll,
           palette: _questPalette,
         );
       case 2:
@@ -472,11 +660,11 @@ class _HomePageState extends State<HomePage> {
           xpBoostArmed: _xpBoostArmed,
           trainingPath: _trainingPath,
           selectedStageIndex: _selectedStageIndex,
-          onStageSelected: _controller.changeStage,
-          onUseXpBoost: _controller.useXpBoost,
-          onUpdateAvatar: _controller.updateAvatarUrl,
-          onUpdateLocalAvatar: _controller.updateAvatarImageBase64,
-          onResetProgress: _controller.resetProgress,
+          onStageSelected: _controller!.changeStage,
+          onUseXpBoost: _controller!.useXpBoost,
+          onUpdateAvatar: _controller!.updateAvatarUrl,
+          onUpdateLocalAvatar: _controller!.updateAvatarImageBase64,
+          onResetProgress: _controller!.resetProgress,
           palette: _playerPalette,
         );
       default:
@@ -486,7 +674,7 @@ class _HomePageState extends State<HomePage> {
           weeklyPlan: _weeklyPlan,
           trainingPath: _trainingPath,
           selectedStageIndex: _selectedStageIndex,
-          onQuestAdvance: _controller.advanceQuest,
+          onQuestAdvance: _controller!.advanceQuest,
           palette: _systemPalette,
         );
     }
