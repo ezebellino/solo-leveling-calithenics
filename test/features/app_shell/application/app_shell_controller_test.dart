@@ -31,26 +31,18 @@ void main() {
       expect(state.startupErrorMessage, 'boom');
     });
 
-    test('prioritizes overlay visibility correctly', () {
+    test('mark bootstrapping clears previous startup error', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
       final controller = container.read(appShellControllerProvider.notifier);
 
-      controller.syncVisibleOverlay(
-        playerAccepted: true,
-        jobChanged: true,
-        hasPendingClassEvolution: false,
-        hasPendingUnlockedShadow: true,
-        hasPendingChestRewards: true,
-        hasPendingLevelUp: true,
-        hasRewardNotice: true,
-      );
+      controller.markFailed('boom');
+      controller.markBootstrapping();
 
-      expect(
-        container.read(appShellControllerProvider).visibleOverlay,
-        AppShellOverlayKind.shadowUnlock,
-      );
+      final state = container.read(appShellControllerProvider);
+      expect(state.startupPhase, AppShellStartupPhase.bootstrapping);
+      expect(state.startupErrorMessage, isNull);
     });
   });
 }

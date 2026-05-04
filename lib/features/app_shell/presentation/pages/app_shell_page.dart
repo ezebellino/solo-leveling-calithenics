@@ -17,12 +17,8 @@ import '../../../home/presentation/pages/hunter_tab.dart';
 import '../../../home/presentation/pages/quest_tab.dart';
 import '../../../home/presentation/pages/stats_tab.dart';
 import '../../../home/presentation/pages/system_tab.dart';
-import '../../../home/presentation/widgets/class_evolution_overlay.dart';
 import '../../../home/presentation/widgets/chest_reward_overlay.dart';
 import '../../../home/presentation/widgets/hud_navigation_bar.dart';
-import '../../../home/presentation/widgets/level_up_overlay.dart';
-import '../../../home/presentation/widgets/notification_panel.dart';
-import '../../../home/presentation/widgets/reward_notice_banner.dart';
 import '../../../home/presentation/widgets/section_palette.dart';
 import '../../../player/application/bootstrap_player_controller.dart';
 import '../../../player/application/bootstrap_player_state.dart';
@@ -30,6 +26,9 @@ import '../../../player/domain/player_snapshot.dart';
 import '../../../shadows/domain/shadow_catalog.dart';
 import '../../../shadows/domain/shadow_entity.dart';
 import '../../../shadows/presentation/widgets/shadow_unlock_overlay.dart';
+import '../../../system/application/system_overlay_controller.dart';
+import '../../../system/application/system_overlay_state.dart';
+import '../../../system/presentation/widgets/system_overlay_stack.dart';
 import '../../application/app_shell_controller.dart';
 import '../../application/app_shell_state.dart';
 import '../widgets/app_shell_frame.dart';
@@ -233,6 +232,7 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
   Widget build(BuildContext context) {
     final bootstrapState = ref.watch(bootstrapPlayerControllerProvider);
     final shellState = ref.watch(appShellControllerProvider);
+    final systemOverlayState = ref.watch(systemOverlayControllerProvider);
 
     if (_controller == null) {
       return _buildBootstrapScaffold(shellState, bootstrapState);
@@ -241,13 +241,15 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
     return ListenableBuilder(
       listenable: _controller!,
       builder: (context, _) {
-        _syncShellOverlayState();
+        _syncSystemOverlayState();
 
         final selectedIndex = shellState.selectedTabIndex;
         final pendingLevelUp = _controller!.pendingLevelUp;
         final pendingClassEvolution = _controller!.pendingClassEvolution;
         final unlockedShadow = _pendingUnlockedShadow;
         final chestRewards = _pendingChestRewards;
+        final hasSystemOverlay =
+            systemOverlayState.visibleOverlay != SystemOverlayKind.none;
 
         return Stack(
           children: [
@@ -268,34 +270,21 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
                 },
               ),
             ),
-            if (shellState.visibleOverlay == AppShellOverlayKind.onboarding)
-              _buildOnboardingOverlay(),
-            if (shellState.visibleOverlay == AppShellOverlayKind.classEvolution &&
-                pendingClassEvolution != null)
-              _buildCeremonialOverlay(
-                child: ClassEvolutionOverlay(
-                  previousClass: pendingClassEvolution.previousClass,
-                  nextClass: pendingClassEvolution.nextClass,
-                  palette: _paletteForIndex(selectedIndex),
-                  onDismiss: _controller!.clearClassEvolutionNotice,
-                ),
-              ),
-            if (shellState.visibleOverlay == AppShellOverlayKind.rewardNotice &&
-                _controller!.rewardNotice != null)
-              Positioned(
-                left: 24,
-                right: 24,
-                top: 110,
-                child: IgnorePointer(
-                  child: RewardNoticeBanner(
-                    message: _controller!.rewardNotice!,
-                    secondary: _paletteForIndex(selectedIndex).secondary,
-                    highlight: _paletteForIndex(selectedIndex).highlight,
-                  ),
-                ),
-              ),
-            if (shellState.visibleOverlay == AppShellOverlayKind.chestReward &&
-                chestRewards != null)
+            SystemOverlayStack(
+              state: systemOverlayState,
+              palette: _paletteForIndex(selectedIndex),
+              playerAccepted: _playerAccepted,
+              jobChanged: _jobChanged,
+              rewardNotice: _controller!.rewardNotice,
+              pendingLevelUp: pendingLevelUp,
+              pendingClassEvolution: pendingClassEvolution,
+              onAcceptPlayer: _controller!.acceptPlayer,
+              onConfirmJobChanged: _controller!.confirmJobChanged,
+              onDismissLevelUp: _controller!.clearLevelUpNotice,
+              onDismissClassEvolution:
+                  _controller!.clearClassEvolutionNotice,
+            ),
+            if (!hasSystemOverlay && chestRewards != null)
               _buildCeremonialOverlay(
                 child: ChestRewardOverlay(
                   rewards: chestRewards,
@@ -303,28 +292,14 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
                   onDismiss: _controller!.clearChestRewardNotice,
                 ),
               ),
-            if (shellState.visibleOverlay == AppShellOverlayKind.shadowUnlock &&
+            if (!hasSystemOverlay &&
+                chestRewards == null &&
                 unlockedShadow != null)
               _buildCeremonialOverlay(
                 child: ShadowUnlockOverlay(
                   shadow: unlockedShadow,
                   palette: _paletteForIndex(selectedIndex),
                   onDismiss: _controller!.clearUnlockedShadowNotice,
-                ),
-              ),
-            if (shellState.visibleOverlay == AppShellOverlayKind.levelUp &&
-                pendingLevelUp != null)
-              Positioned.fill(
-                child: Container(
-                  alignment: Alignment.center,
-                  color: const Color(0xC4060A10),
-                  padding: const EdgeInsets.symmetric(horizontal: 26),
-                  child: LevelUpOverlay(
-                    level: pendingLevelUp,
-                    primary: _paletteForIndex(selectedIndex).primary,
-                    secondary: _paletteForIndex(selectedIndex).secondary,
-                    onDismiss: _controller!.clearLevelUpNotice,
-                  ),
                 ),
               ),
           ],
@@ -427,7 +402,7 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
     }
   }
 
-  void _syncShellOverlayState() {
+  void _syncSystemOverlayState() {
     final controller = _controller;
     if (controller == null) {
       return;
@@ -437,12 +412,10 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
       if (!mounted || _controller == null) {
         return;
       }
-      ref.read(appShellControllerProvider.notifier).syncVisibleOverlay(
+      ref.read(systemOverlayControllerProvider.notifier).syncFromGame(
         playerAccepted: _playerAccepted,
         jobChanged: _jobChanged,
         hasPendingClassEvolution: controller.pendingClassEvolution != null,
-        hasPendingUnlockedShadow: _pendingUnlockedShadow != null,
-        hasPendingChestRewards: _pendingChestRewards != null,
         hasPendingLevelUp: controller.pendingLevelUp != null,
         hasRewardNotice: controller.rewardNotice != null,
       );
@@ -526,48 +499,6 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOnboardingOverlay() {
-    return Positioned.fill(
-      child: Container(
-        color: const Color(0xCC03080F),
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: !_playerAccepted
-                  ? NotificationPanel(
-                      key: const ValueKey('accept-player'),
-                      title: 'Notificacion',
-                      lines: const [
-                        'Has adquirido las condiciones para convertirte en un Jugador.',
-                        'Acepta el Sistema y comienza tu progresion diaria.',
-                      ],
-                      secondaryLabel: '[ Rechazar ]',
-                      ctaLabel: '[ Aceptar ]',
-                      onSecondary: () {},
-                      onAccept: _controller!.acceptPlayer,
-                    )
-                  : NotificationPanel(
-                      key: const ValueKey('job-change'),
-                      title: 'Asignacion de clase',
-                      lines: const [
-                        'Clase inicial asignada por el Sistema.',
-                        '[ humano novato ]',
-                        'Tu progreso fisico y tu disciplina definiran tu proxima evolucion.',
-                      ],
-                      ctaLabel: '[ Continuar ]',
-                      emphasisColor: const Color(0xFF25F3B4),
-                      onAccept: _controller!.confirmJobChanged,
-                    ),
-            ),
-          ),
         ),
       ),
     );
