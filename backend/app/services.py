@@ -9,16 +9,24 @@ from sqlalchemy.orm import Session
 from app.core.logging import logger
 from app.database import check_database_connection, engine
 from app.models import DailyQuest, InventoryItem, PlayerProgress, User, reconcile_default_data, seed_default_data
-from app.schemas import (
+from app.modules.player.api.schemas import (
     BootstrapResponse,
-    DailyQuestResponse,
-    DatabaseStatus,
     InventoryItemResponse,
     PlayerOverviewResponse,
     PlayerSummary,
-    QuestListResponse,
     StageSummary,
     UpdatePlayerProgressRequest,
+)
+from app.modules.player.application.service import (
+    class_for_level,
+    get_player_bootstrap as build_bootstrap_payload,
+    get_player_overview,
+    update_player_progress,
+)
+from app.schemas import (
+    DailyQuestResponse,
+    DatabaseStatus,
+    QuestListResponse,
 )
 
 
@@ -50,20 +58,6 @@ def build_database_status() -> DatabaseStatus:
         engine=engine.dialect.name,
         detail=detail,
     )
-
-
-def class_for_level(level: int) -> str:
-    if level >= 70:
-        return "Superhumano"
-    if level >= 50:
-        return "Ascendido"
-    if level >= 35:
-        return "Calistenico"
-    if level >= 20:
-        return "Disciplinado"
-    if level >= 10:
-        return "Despierto"
-    return "Humano novato"
 
 
 def _get_default_user(session: Session) -> User:
@@ -138,83 +132,6 @@ def _grant_xp(progress: PlayerProgress, xp_amount: int) -> None:
         progress.strength += 1
         progress.agility += 1
         progress.endurance += 1
-
-
-def build_bootstrap_payload(session: Session) -> BootstrapResponse:
-    user = _get_default_user(session)
-    return BootstrapResponse(
-        player=_serialize_player(user),
-        stage=_serialize_stage(user),
-        feature_flags={
-            "local_sync_ready": True,
-            "google_auth_ready": False,
-            "special_quest_enabled": True,
-            "database_ready": True,
-        },
-    )
-
-
-def get_player_overview(session: Session) -> PlayerOverviewResponse:
-    user = _get_default_user(session)
-    progress = user.progress
-    if progress is None:
-        raise RuntimeError("El jugador no tiene progreso asociado.")
-
-    return PlayerOverviewResponse(
-        player=_serialize_player(user),
-        stage=_serialize_stage(user),
-        inventory=_serialize_inventory(user.inventory_items),
-        completedDays=progress.completed_days,
-    )
-
-
-def update_player_progress(
-    session: Session,
-    payload: UpdatePlayerProgressRequest,
-) -> PlayerOverviewResponse:
-    user = _get_default_user(session)
-    progress = user.progress
-    if progress is None:
-        raise RuntimeError("El jugador no tiene progreso asociado.")
-
-    if payload.alias is not None:
-        user.alias = payload.alias
-    if payload.avatar_url is not None:
-        user.avatar_url = payload.avatar_url
-    if payload.rank is not None:
-        user.rank = payload.rank
-    if payload.stage_index is not None:
-        user.stage_index = payload.stage_index
-    if payload.stage_title is not None:
-        user.stage_title = payload.stage_title
-    if payload.stage_goal is not None:
-        user.stage_goal = payload.stage_goal
-    if payload.stage_frequency is not None:
-        user.stage_frequency = payload.stage_frequency
-    if payload.level is not None:
-        progress.level = payload.level
-    if payload.current_xp is not None:
-        progress.current_xp = payload.current_xp
-    if payload.next_level_xp is not None:
-        progress.next_level_xp = payload.next_level_xp
-    if payload.streak_days is not None:
-        progress.streak_days = payload.streak_days
-    if payload.completed_days is not None:
-        progress.completed_days = payload.completed_days
-    if payload.shadow_army is not None:
-        progress.shadow_army = payload.shadow_army
-    if payload.strength is not None:
-        progress.strength = payload.strength
-    if payload.agility is not None:
-        progress.agility = payload.agility
-    if payload.endurance is not None:
-        progress.endurance = payload.endurance
-    if payload.discipline is not None:
-        progress.discipline = payload.discipline
-
-    session.commit()
-    session.refresh(user)
-    return get_player_overview(session)
 
 
 def get_today_quests(session: Session) -> QuestListResponse:

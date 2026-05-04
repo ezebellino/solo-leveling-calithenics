@@ -10,25 +10,21 @@ from app.core.errors import AppError, app_error_handler
 from app.core.logging import configure_logging
 from app.core.request_context import request_logging_middleware
 from app.database import get_db
+from app.modules.player.api.router import router as player_router
 from app.schemas import (
     AdvanceQuestRequest,
     DailyQuestResponse,
     HealthResponse,
     InventoryItemResponse,
-    PlayerOverviewResponse,
     QuestListResponse,
-    UpdatePlayerProgressRequest,
 )
 from app.services import (
     advance_quest,
-    build_bootstrap_payload,
     build_database_status,
     complete_quest,
     get_inventory,
-    get_player_overview,
     get_today_quests,
     initialize_database,
-    update_player_progress,
 )
 
 configure_logging(settings.log_level)
@@ -49,6 +45,7 @@ app = FastAPI(
 )
 app.add_exception_handler(AppError, app_error_handler)
 app.middleware("http")(request_logging_middleware)
+app.include_router(player_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -75,28 +72,6 @@ def healthcheck() -> HealthResponse:
         timestamp=datetime.now(timezone.utc),
         database=build_database_status(),
     )
-
-
-@app.get(f"{settings.api_prefix}/bootstrap", tags=["bootstrap"])
-def bootstrap(db: Session = Depends(get_db)) -> dict:
-    return build_bootstrap_payload(db).model_dump(by_alias=True)
-
-
-@app.get(f"{settings.api_prefix}/player", response_model=PlayerOverviewResponse, tags=["player"])
-def player_overview(db: Session = Depends(get_db)) -> PlayerOverviewResponse:
-    return get_player_overview(db)
-
-
-@app.patch(
-    f"{settings.api_prefix}/player/progress",
-    response_model=PlayerOverviewResponse,
-    tags=["player"],
-)
-def patch_player_progress(
-    payload: UpdatePlayerProgressRequest,
-    db: Session = Depends(get_db),
-) -> PlayerOverviewResponse:
-    return update_player_progress(db, payload)
 
 
 @app.get(f"{settings.api_prefix}/quests/today", response_model=QuestListResponse, tags=["quests"])
