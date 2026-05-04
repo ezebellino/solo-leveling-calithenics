@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:solo_leveling_calisthenics/features/home/presentation/widgets/section_palette.dart';
 import 'package:solo_leveling_calisthenics/features/shadows/domain/shadow_entity.dart';
 import 'package:solo_leveling_calisthenics/features/shadows/presentation/widgets/shadow_compact_card.dart';
-import 'package:solo_leveling_calisthenics/features/shadows/presentation/widgets/shadow_fullscreen_card.dart';
 
 void main() {
   const palette = SectionPalette(
@@ -28,7 +27,7 @@ void main() {
     ),
   );
 
-  testWidgets('unlocked compact card exposes premium metadata and forwards taps', (
+  testWidgets('locked compact card shows only name and hint, and still forwards taps', (
     tester,
   ) async {
     var tapCount = 0;
@@ -42,7 +41,7 @@ void main() {
               width: 280,
               child: ShadowCompactCard(
                 shadow: shadow,
-                isUnlocked: true,
+                isUnlocked: false,
                 palette: palette,
                 onTap: () => tapCount++,
               ),
@@ -53,48 +52,13 @@ void main() {
     );
 
     expect(find.text('Igris'), findsOneWidget);
-    expect(find.text('Caballero Sombra'), findsOneWidget);
-    expect(find.textContaining('7 dias de mision principal'), findsNothing);
-
-    await tester.tap(find.byType(ShadowCompactCard));
-    await tester.pump();
-
-    expect(tapCount, 1);
-  });
-
-  testWidgets('locked fullscreen card keeps the content gated', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: ShadowFullscreenCard(
-          shadow: shadow,
-          isUnlocked: false,
-          palette: palette,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Igris'), findsWidgets);
     expect(find.textContaining('7 dias de mision principal'), findsOneWidget);
     expect(find.text('Caballero Sombra'), findsNothing);
-    expect(find.textContaining('Un duelista disciplinado'), findsNothing);
-  });
+    expect(find.text('Bloqueada'), findsNothing);
 
-  testWidgets('unlocked fullscreen card reveals the enriched card content', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: ShadowFullscreenCard(
-          shadow: shadow,
-          isUnlocked: true,
-          palette: palette,
-        ),
-      ),
-    );
+    await tester.tap(find.byType(ShadowCompactCard));
     await tester.pumpAndSettle();
 
-    expect(find.text('Igris'), findsWidgets);
-    expect(find.text('Caballero Sombra'), findsOneWidget);
-    expect(find.textContaining('Su espada solo responde a jugadores'), findsOneWidget);
-    expect(find.textContaining('Un duelista disciplinado'), findsOneWidget);
+    expect(tapCount, 1);
   });
 }

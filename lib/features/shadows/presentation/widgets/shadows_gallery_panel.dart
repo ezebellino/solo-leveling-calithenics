@@ -89,6 +89,23 @@ class ShadowsGalleryPanel extends StatelessWidget {
                     isUnlocked: isUnlocked,
                     palette: palette,
                     onTap: () {
+                      if (!isUnlocked) {
+                        final messenger = ScaffoldMessenger.maybeOf(context);
+                        messenger
+                          ?..hideCurrentSnackBar()
+                          ..showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                'Podras visualizar esta sombra cuando la desbloquees.',
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: const Color(0xFF091018),
+                              duration: const Duration(milliseconds: 1800),
+                            ),
+                          );
+                        return;
+                      }
+
                       showDialog<void>(
                         context: context,
                         barrierColor: Colors.black.withValues(alpha: 0.86),
