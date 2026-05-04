@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solo_leveling_calisthenics/features/home/presentation/widgets/chest_reward_overlay.dart';
 import 'package:solo_leveling_calisthenics/features/home/presentation/widgets/section_palette.dart';
+import 'package:solo_leveling_calisthenics/features/inventory/presentation/widgets/chest_reward_overlay.dart';
 
 void main() {
   const palette = SectionPalette(
@@ -33,14 +33,10 @@ void main() {
     );
   }
 
-  testWidgets('renders chest headline, rewards and dismiss CTA', (
-    tester,
-  ) async {
+  testWidgets('renders chest headline, rewards and dismiss CTA', (tester) async {
     var dismissCount = 0;
 
-    await tester.pumpWidget(
-      buildSubject(onDismiss: () => dismissCount++),
-    );
+    await tester.pumpWidget(buildSubject(onDismiss: () => dismissCount++));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Cofre recibido'), findsOneWidget);

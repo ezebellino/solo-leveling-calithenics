@@ -16,9 +16,11 @@ import '../../../home/presentation/controllers/home_controller.dart';
 import '../../../home/presentation/pages/hunter_tab.dart';
 import '../../../home/presentation/pages/stats_tab.dart';
 import '../../../home/presentation/pages/system_tab.dart';
-import '../../../home/presentation/widgets/chest_reward_overlay.dart';
 import '../../../home/presentation/widgets/hud_navigation_bar.dart';
 import '../../../home/presentation/widgets/section_palette.dart';
+import '../../../inventory/application/inventory_action_handler.dart';
+import '../../../inventory/application/inventory_controller.dart';
+import '../../../inventory/presentation/widgets/chest_reward_overlay.dart';
 import '../../../player/application/bootstrap_player_controller.dart';
 import '../../../player/application/bootstrap_player_state.dart';
 import '../../../player/domain/player_snapshot.dart';
@@ -186,7 +188,6 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
       _controller?.playerState?.unlockedShadowIds ?? const <String>[];
   String get _lastUnlockedShadowId =>
       _controller?.playerState?.lastUnlockedShadowId ?? '';
-  List<String>? get _pendingChestRewards => _controller?.pendingChestRewards;
   ShadowEntity? get _pendingUnlockedShadow {
     final shadowId = _controller?.pendingUnlockedShadowId;
     if (shadowId == null || shadowId.isEmpty) {
@@ -240,74 +241,94 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
       return _buildBootstrapScaffold(shellState, bootstrapState);
     }
 
-    return ListenableBuilder(
-      listenable: _controller!,
-      builder: (context, _) {
-        _syncSystemOverlayState();
+      return ListenableBuilder(
+        listenable: _controller!,
+        builder: (context, _) {
+          _syncSystemOverlayState();
 
-        final selectedIndex = shellState.selectedTabIndex;
-        final pendingLevelUp = _controller!.pendingLevelUp;
-        final pendingClassEvolution = _controller!.pendingClassEvolution;
-        final unlockedShadow = _pendingUnlockedShadow;
-        final chestRewards = _pendingChestRewards;
-        final hasSystemOverlay =
-            systemOverlayState.visibleOverlay != SystemOverlayKind.none;
+          final selectedIndex = shellState.selectedTabIndex;
+          final pendingLevelUp = _controller!.pendingLevelUp;
+          final pendingClassEvolution = _controller!.pendingClassEvolution;
+          final unlockedShadow = _pendingUnlockedShadow;
 
-        return Stack(
-          children: [
-            AppShellFrame(
-              selectedTabIndex: selectedIndex,
-              previousTabIndex: shellState.previousTabIndex,
-              currentTab: _buildCurrentTab(selectedIndex),
-              bottomNavigationBar: HudNavigationBar(
-                items: _navItems,
-                currentIndex: selectedIndex,
-                primary: _paletteForIndex(selectedIndex).primary,
-                secondary: _paletteForIndex(selectedIndex).secondary,
-                highlight: _paletteForIndex(selectedIndex).highlight,
-                onTap: (index) {
-                  ref
-                      .read(appShellControllerProvider.notifier)
-                      .selectTab(index);
-                },
-              ),
-            ),
-            SystemOverlayStack(
-              state: systemOverlayState,
-              palette: _paletteForIndex(selectedIndex),
-              playerAccepted: _playerAccepted,
-              jobChanged: _jobChanged,
-              rewardNotice: _controller!.rewardNotice,
-              pendingLevelUp: pendingLevelUp,
-              pendingClassEvolution: pendingClassEvolution,
-              onAcceptPlayer: _controller!.acceptPlayer,
-              onConfirmJobChanged: _controller!.confirmJobChanged,
-              onDismissLevelUp: _controller!.clearLevelUpNotice,
-              onDismissClassEvolution:
-                  _controller!.clearClassEvolutionNotice,
-            ),
-            if (!hasSystemOverlay && chestRewards != null)
-              _buildCeremonialOverlay(
-                child: ChestRewardOverlay(
-                  rewards: chestRewards,
-                  palette: _paletteForIndex(selectedIndex),
-                  onDismiss: _controller!.clearChestRewardNotice,
+          return ProviderScope(
+            overrides: [
+              inventoryActionHandlerProvider.overrideWithValue(
+                InventoryActionHandler(
+                  useXpBoost: _controller!.useXpBoost,
+                  useReroll: _controller!.useReroll,
+                  clearChestRewards: _controller!.clearChestRewardNotice,
                 ),
               ),
-            if (!hasSystemOverlay &&
-                chestRewards == null &&
-                unlockedShadow != null)
-              _buildCeremonialOverlay(
-                child: ShadowUnlockOverlay(
-                  shadow: unlockedShadow,
-                  palette: _paletteForIndex(selectedIndex),
-                  onDismiss: _controller!.clearUnlockedShadowNotice,
-                ),
-              ),
-          ],
-        );
-      },
-    );
+            ],
+            child: Consumer(
+              builder: (context, scopedRef, _) {
+                _syncInventoryState(scopedRef);
+                final inventoryState = scopedRef.watch(inventoryControllerProvider);
+                final chestRewards = inventoryState.chestRewards;
+                final hasSystemOverlay =
+                    systemOverlayState.visibleOverlay != SystemOverlayKind.none;
+
+                return Stack(
+                  children: [
+                    AppShellFrame(
+                      selectedTabIndex: selectedIndex,
+                      previousTabIndex: shellState.previousTabIndex,
+                      currentTab: _buildCurrentTab(selectedIndex),
+                      bottomNavigationBar: HudNavigationBar(
+                        items: _navItems,
+                        currentIndex: selectedIndex,
+                        primary: _paletteForIndex(selectedIndex).primary,
+                        secondary: _paletteForIndex(selectedIndex).secondary,
+                        highlight: _paletteForIndex(selectedIndex).highlight,
+                        onTap: (index) {
+                          ref
+                              .read(appShellControllerProvider.notifier)
+                              .selectTab(index);
+                        },
+                      ),
+                    ),
+                    SystemOverlayStack(
+                      state: systemOverlayState,
+                      palette: _paletteForIndex(selectedIndex),
+                      playerAccepted: _playerAccepted,
+                      jobChanged: _jobChanged,
+                      rewardNotice: _controller!.rewardNotice,
+                      pendingLevelUp: pendingLevelUp,
+                      pendingClassEvolution: pendingClassEvolution,
+                      onAcceptPlayer: _controller!.acceptPlayer,
+                      onConfirmJobChanged: _controller!.confirmJobChanged,
+                      onDismissLevelUp: _controller!.clearLevelUpNotice,
+                      onDismissClassEvolution:
+                          _controller!.clearClassEvolutionNotice,
+                    ),
+                    if (!hasSystemOverlay && chestRewards != null)
+                      _buildCeremonialOverlay(
+                        child: ChestRewardOverlay(
+                          rewards: chestRewards,
+                          palette: _paletteForIndex(selectedIndex),
+                          onDismiss: () => scopedRef
+                              .read(inventoryControllerProvider.notifier)
+                              .dismissChestRewards(),
+                        ),
+                      ),
+                    if (!hasSystemOverlay &&
+                        chestRewards == null &&
+                        unlockedShadow != null)
+                      _buildCeremonialOverlay(
+                        child: ShadowUnlockOverlay(
+                          shadow: unlockedShadow,
+                          palette: _paletteForIndex(selectedIndex),
+                          onDismiss: _controller!.clearUnlockedShadowNotice,
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          );
+        },
+      );
   }
 
   void _handleBootstrapStateChanged(
@@ -421,6 +442,22 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
         hasPendingLevelUp: controller.pendingLevelUp != null,
         hasRewardNotice: controller.rewardNotice != null,
       );
+    });
+  }
+
+  void _syncInventoryState(WidgetRef providerRef) {
+    final controller = _controller;
+    if (controller == null) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _controller == null) {
+        return;
+      }
+      providerRef
+          .read(inventoryControllerProvider.notifier)
+          .syncChestRewards(controller.pendingChestRewards);
     });
   }
 
@@ -539,8 +576,6 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
                 advanceQuest: _controller!.advanceQuest,
                 advanceSpecialQuest: _controller!.advanceSpecialQuest,
                 decideSpecialQuest: _controller!.decideSpecialQuest,
-                useXpBoost: _controller!.useXpBoost,
-                useReroll: _controller!.useReroll,
               ),
             ),
           ],
@@ -573,7 +608,6 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
           trainingPath: _trainingPath,
           selectedStageIndex: _selectedStageIndex,
           onStageSelected: _controller!.changeStage,
-          onUseXpBoost: _controller!.useXpBoost,
           onUpdateAvatar: _controller!.updateAvatarUrl,
           onUpdateLocalAvatar: _controller!.updateAvatarImageBase64,
           onResetProgress: _controller!.resetProgress,

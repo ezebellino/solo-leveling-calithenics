@@ -37,20 +37,6 @@ class QuestActionsController extends AutoDisposeNotifier<QuestActionsState> {
     );
   }
 
-  Future<void> useXpBoost() async {
-    await _runAction(
-      actionKey: 'inventory:xp_boost',
-      operation: () => ref.read(questActionHandlerProvider).useXpBoost(),
-    );
-  }
-
-  Future<void> useReroll() async {
-    await _runAction(
-      actionKey: 'inventory:reroll',
-      operation: () => ref.read(questActionHandlerProvider).useReroll(),
-    );
-  }
-
   Future<void> _runAction({
     required String actionKey,
     required Future<void> Function() operation,

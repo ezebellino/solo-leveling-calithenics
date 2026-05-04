@@ -26,8 +26,6 @@ void main() {
               },
               advanceSpecialQuest: (_) async {},
               decideSpecialQuest: (_) async {},
-              useXpBoost: () async {},
-              useReroll: () async {},
             ),
           ),
         ],
@@ -42,30 +40,6 @@ void main() {
       final state = container.read(questActionsControllerProvider);
       expect(state.isSubmitting, isFalse);
       expect(state.activeActionKey, isNull);
-    });
-
-    test('use reroll delegates to handler', () async {
-      var rerollCalls = 0;
-      final container = ProviderContainer(
-        overrides: [
-          questActionHandlerProvider.overrideWithValue(
-            QuestActionHandler(
-              advanceQuest: (_) async {},
-              advanceSpecialQuest: (_) async {},
-              decideSpecialQuest: (_) async {},
-              useXpBoost: () async {},
-              useReroll: () async {
-                rerollCalls += 1;
-              },
-            ),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      await container.read(questActionsControllerProvider.notifier).useReroll();
-
-      expect(rerollCalls, 1);
     });
   });
 }

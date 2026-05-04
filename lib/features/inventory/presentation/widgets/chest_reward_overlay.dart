@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'holographic_panel.dart';
-import 'section_palette.dart';
+import '../../../home/presentation/widgets/holographic_panel.dart';
+import '../../../home/presentation/widgets/section_palette.dart';
 
 class ChestRewardOverlay extends StatefulWidget {
   const ChestRewardOverlay({

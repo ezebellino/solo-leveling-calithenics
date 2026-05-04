@@ -5,8 +5,8 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../domain/hunter_profile.dart';
 import '../../domain/training_path.dart';
+import '../../../inventory/presentation/widgets/inventory_panel.dart';
 import '../widgets/holographic_panel.dart';
-import '../widgets/inventory_tile.dart';
 import '../widgets/screen_frame.dart';
 import '../widgets/section_palette.dart';
 import '../widgets/system_badge.dart';
@@ -20,7 +20,6 @@ class HunterTab extends StatelessWidget {
     required this.trainingPath,
     required this.selectedStageIndex,
     required this.onStageSelected,
-    required this.onUseXpBoost,
     required this.onUpdateAvatar,
     required this.onUpdateLocalAvatar,
     required this.onResetProgress,
@@ -34,7 +33,6 @@ class HunterTab extends StatelessWidget {
   final TrainingPath trainingPath;
   final int selectedStageIndex;
   final ValueChanged<int> onStageSelected;
-  final VoidCallback onUseXpBoost;
   final ValueChanged<String> onUpdateAvatar;
   final ValueChanged<String> onUpdateLocalAvatar;
   final VoidCallback onResetProgress;
@@ -148,79 +146,14 @@ class HunterTab extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 18),
-        HolographicPanel(
-          glowColor: palette.primary,
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-          decorate: false,
-          showCorners: false,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 420;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'INVENTARIO',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: palette.primary,
-                      letterSpacing: 2.0,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      SizedBox(
-                        width: compact ? constraints.maxWidth : (constraints.maxWidth - 20) / 3,
-                        child: InventoryTile(
-                          label: 'Freeze',
-                          value: '${inventory['freeze'] ?? 0}',
-                          accent: palette.primary,
-                        ),
-                      ),
-                      SizedBox(
-                        width: compact ? constraints.maxWidth : (constraints.maxWidth - 20) / 3,
-                        child: InventoryTile(
-                          label: 'XP Boost',
-                          value: xpBoostArmed ? 'Activo' : '${inventory['xp_boost'] ?? 0}',
-                          accent: palette.secondary,
-                        ),
-                      ),
-                      SizedBox(
-                        width: compact ? constraints.maxWidth : (constraints.maxWidth - 20) / 3,
-                        child: InventoryTile(
-                          label: 'Re-roll',
-                          value: '${inventory['reroll'] ?? 0}',
-                          accent: palette.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: xpBoostArmed ? null : onUseXpBoost,
-                      child: const Text('Activar XP Boost'),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: onResetProgress,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFFF7D7D),
-                        side: const BorderSide(color: Color(0x66FF7D7D)),
-                      ),
-                      child: const Text('Reset progreso'),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
+        InventoryPanel(
+          title: 'INVENTARIO',
+          inventory: inventory,
+          xpBoostArmed: xpBoostArmed,
+          palette: palette,
+          showRerollAction: false,
+          xpBoostCtaLabel: 'Activar XP Boost',
+          onResetProgress: onResetProgress,
         ),
         const SizedBox(height: 18),
         HolographicPanel(

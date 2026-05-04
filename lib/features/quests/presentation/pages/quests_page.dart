@@ -5,11 +5,11 @@ import '../../../home/domain/daily_quest.dart';
 import '../../../home/domain/hunter_profile.dart';
 import '../../../home/domain/training_path.dart';
 import '../../../home/presentation/widgets/holographic_panel.dart';
-import '../../../home/presentation/widgets/inventory_tile.dart';
 import '../../../home/presentation/widgets/screen_frame.dart';
 import '../../../home/presentation/widgets/section_palette.dart';
 import '../../../home/presentation/widgets/system_badge.dart';
 import '../../../home/presentation/widgets/training_widgets.dart';
+import '../../../inventory/presentation/widgets/inventory_panel.dart';
 import '../../../system/presentation/widgets/system_notification_panel.dart';
 import '../../application/quest_actions_controller.dart';
 import '../../application/quest_actions_state.dart';
@@ -156,21 +156,12 @@ class QuestsPage extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 18),
-        Text(
-          'INVENTARIO DEL SISTEMA',
-          style: theme.textTheme.titleMedium?.copyWith(
-            letterSpacing: 2.4,
-            color: palette.primary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        _QuestInventoryPanel(
+        InventoryPanel(
+          title: 'INVENTARIO DEL SISTEMA',
           inventory: inventory,
           xpBoostArmed: xpBoostArmed,
           palette: palette,
-          state: actionState,
-          onUseXpBoost: actions.useXpBoost,
-          onUseReroll: actions.useReroll,
+          showRerollAction: true,
         ),
         const SizedBox(height: 18),
         Text(
@@ -331,130 +322,6 @@ class _PendingSpecialQuestPanel extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _QuestInventoryPanel extends StatelessWidget {
-  const _QuestInventoryPanel({
-    required this.inventory,
-    required this.xpBoostArmed,
-    required this.palette,
-    required this.state,
-    required this.onUseXpBoost,
-    required this.onUseReroll,
-  });
-
-  final Map<String, int> inventory;
-  final bool xpBoostArmed;
-  final SectionPalette palette;
-  final QuestActionsState state;
-  final Future<void> Function() onUseXpBoost;
-  final Future<void> Function() onUseReroll;
-
-  @override
-  Widget build(BuildContext context) {
-    return HolographicPanel(
-      glowColor: palette.primary,
-      padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
-      decorate: false,
-      showCorners: false,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 420;
-          final xpBoostBusy =
-              state.isSubmitting &&
-              state.activeActionKey == 'inventory:xp_boost';
-          final rerollBusy =
-              state.isSubmitting && state.activeActionKey == 'inventory:reroll';
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  SizedBox(
-                    width: compact
-                        ? constraints.maxWidth
-                        : (constraints.maxWidth - 20) / 3,
-                    child: InventoryTile(
-                      label: 'Freeze',
-                      value: '${inventory['freeze'] ?? 0}',
-                      accent: palette.primary,
-                    ),
-                  ),
-                  SizedBox(
-                    width: compact
-                        ? constraints.maxWidth
-                        : (constraints.maxWidth - 20) / 3,
-                    child: InventoryTile(
-                      label: 'XP Boost',
-                      value: xpBoostArmed
-                          ? 'Activo'
-                          : '${inventory['xp_boost'] ?? 0}',
-                      accent: palette.secondary,
-                    ),
-                  ),
-                  SizedBox(
-                    width: compact
-                        ? constraints.maxWidth
-                        : (constraints.maxWidth - 20) / 3,
-                    child: InventoryTile(
-                      label: 'Re-roll',
-                      value: '${inventory['reroll'] ?? 0}',
-                      accent: palette.primary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              if (compact) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: xpBoostArmed || state.isSubmitting
-                        ? null
-                        : onUseXpBoost,
-                    child: Text(xpBoostBusy ? 'Procesando...' : 'Usar XP Boost'),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: state.isSubmitting ? null : onUseReroll,
-                    child: Text(rerollBusy ? 'Procesando...' : 'Usar Re-roll'),
-                  ),
-                ),
-              ] else
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: xpBoostArmed || state.isSubmitting
-                            ? null
-                            : onUseXpBoost,
-                        child: Text(
-                          xpBoostBusy ? 'Procesando...' : 'Usar XP Boost',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: state.isSubmitting ? null : onUseReroll,
-                        child: Text(
-                          rerollBusy ? 'Procesando...' : 'Usar Re-roll',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-            ],
-          );
-        },
       ),
     );
   }
