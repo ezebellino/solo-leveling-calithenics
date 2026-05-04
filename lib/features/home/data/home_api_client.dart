@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../player/data/player_api_client.dart';
 import '../domain/daily_quest.dart';
 import '../domain/hunter_profile.dart';
 
@@ -25,25 +26,34 @@ class HomeApiClient {
   HomeApiClient({
     required this.baseUrl,
     http.Client? httpClient,
-  }) : _httpClient = httpClient ?? http.Client();
+    PlayerApiClient? playerApiClient,
+  })  : _httpClient = httpClient ?? http.Client(),
+        _injectedPlayerApiClient = playerApiClient;
 
   final String baseUrl;
   final http.Client _httpClient;
+  final PlayerApiClient? _injectedPlayerApiClient;
+  PlayerApiClient? _ownedPlayerApiClient;
 
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
+  PlayerApiClient get _playerApiClient {
+    return _injectedPlayerApiClient ??
+        (_ownedPlayerApiClient ??= PlayerApiClient(
+          baseUrl: baseUrl,
+          httpClient: _httpClient,
+          disposeHttpClient: false,
+        ));
+  }
+
   Future<RemoteHomeSnapshot> fetchSnapshot() async {
-    final playerResponse = await _httpClient.get(_uri('/api/v1/player'));
+    final playerJson = await _playerApiClient.fetchPlayerJson();
     final questsResponse = await _httpClient.get(_uri('/api/v1/quests/today'));
 
-    if (playerResponse.statusCode != 200) {
-      throw Exception('No se pudo obtener el jugador remoto.');
-    }
     if (questsResponse.statusCode != 200) {
       throw Exception('No se pudieron obtener las quests remotas.');
     }
 
-    final playerJson = jsonDecode(playerResponse.body) as Map<String, dynamic>;
     final questsJson = jsonDecode(questsResponse.body) as Map<String, dynamic>;
 
     return RemoteHomeSnapshot(
@@ -63,15 +73,9 @@ class HomeApiClient {
   }
 
   Future<void> updateAvatarUrl(String avatarUrl) async {
-    final response = await _httpClient.patch(
-      _uri('/api/v1/player/progress'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'avatarUrl': avatarUrl}),
-    );
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('No se pudo actualizar el avatar remoto.');
-    }
+    await _playerApiClient.updatePlayerProgress(<String, dynamic>{
+      'avatarUrl': avatarUrl,
+    });
   }
 
   Future<void> advanceQuest(String questId, {int amount = 1}) async {
@@ -135,6 +139,7 @@ class HomeApiClient {
   }
 
   void dispose() {
+    _ownedPlayerApiClient?.dispose();
     _httpClient.close();
   }
 }
