@@ -25,17 +25,19 @@ class HomeController extends ChangeNotifier {
   bool _isLoading = true;
   int _selectedIndex = 0;
   int _previousIndex = 0;
-  int? _levelUpNotice;
+  int? _pendingLevelUp;
+  ClassEvolutionNotice? _pendingClassEvolution;
   String? _rewardNotice;
   String? _pendingUnlockedShadowId;
   List<String>? _pendingChestRewards;
-  Timer? _levelUpTimer;
   Timer? _rewardNoticeTimer;
 
   bool get isLoading => _isLoading;
   int get selectedIndex => _selectedIndex;
   int get previousIndex => _previousIndex;
-  int? get levelUpNotice => _levelUpNotice;
+  int? get levelUpNotice => _pendingLevelUp;
+  int? get pendingLevelUp => _pendingLevelUp;
+  ClassEvolutionNotice? get pendingClassEvolution => _pendingClassEvolution;
   String? get rewardNotice => _rewardNotice;
   String? get pendingUnlockedShadowId => _pendingUnlockedShadowId;
   List<String>? get pendingChestRewards => _pendingChestRewards;
@@ -171,7 +173,8 @@ class HomeController extends ChangeNotifier {
     await _applyUpdate(_system.resetProgress());
     _selectedIndex = 0;
     _previousIndex = 0;
-    _levelUpNotice = null;
+    _pendingLevelUp = null;
+    _pendingClassEvolution = null;
     _pendingUnlockedShadowId = null;
     notifyListeners();
   }
@@ -184,10 +187,13 @@ class HomeController extends ChangeNotifier {
       notifyListeners();
     }
     if (update.levelUp != null) {
-      _showLevelUp(update.levelUp!);
+      _pendingLevelUp = update.levelUp;
     }
-    if (update.classChange != null) {
-      _showRewardNotice('Clase del sistema actualizada: ${update.classChange}');
+    if (update.classEvolution != null) {
+      _pendingClassEvolution = update.classEvolution;
+    }
+    if (update.levelUp != null || update.classEvolution != null) {
+      notifyListeners();
     }
     for (final notice in update.notices) {
       _handleNotice(notice);
@@ -210,6 +216,22 @@ class HomeController extends ChangeNotifier {
       return;
     }
     _pendingChestRewards = null;
+    notifyListeners();
+  }
+
+  void clearLevelUpNotice() {
+    if (_pendingLevelUp == null) {
+      return;
+    }
+    _pendingLevelUp = null;
+    notifyListeners();
+  }
+
+  void clearClassEvolutionNotice() {
+    if (_pendingClassEvolution == null) {
+      return;
+    }
+    _pendingClassEvolution = null;
     notifyListeners();
   }
 
@@ -277,17 +299,6 @@ class HomeController extends ChangeNotifier {
     }
   }
 
-  void _showLevelUp(int level) {
-    _levelUpTimer?.cancel();
-    _levelUpNotice = level;
-    notifyListeners();
-
-    _levelUpTimer = Timer(const Duration(milliseconds: 1800), () {
-      _levelUpNotice = null;
-      notifyListeners();
-    });
-  }
-
   void _showRewardNotice(String message) {
     _rewardNoticeTimer?.cancel();
     _rewardNotice = message;
@@ -335,7 +346,6 @@ class HomeController extends ChangeNotifier {
 
   @override
   void dispose() {
-    _levelUpTimer?.cancel();
     _rewardNoticeTimer?.cancel();
     _apiClient?.dispose();
     super.dispose();

@@ -15,6 +15,7 @@ import 'hunter_tab.dart';
 import 'quest_tab.dart';
 import 'stats_tab.dart';
 import 'system_tab.dart';
+import '../widgets/class_evolution_overlay.dart';
 import '../widgets/chest_reward_overlay.dart';
 import '../widgets/hud_navigation_bar.dart';
 import '../widgets/level_up_overlay.dart';
@@ -226,7 +227,13 @@ class _HomePageState extends State<HomePage> {
         final previousIndex = _controller.previousIndex;
         final unlockedShadow = _pendingUnlockedShadow;
         final chestRewards = _pendingChestRewards;
-        final isSystemOverlayActive = unlockedShadow != null || chestRewards != null;
+        final pendingLevelUp = _controller.pendingLevelUp;
+        final pendingClassEvolution = _controller.pendingClassEvolution;
+        final hasCeremonialOverlay =
+            pendingClassEvolution != null ||
+            unlockedShadow != null ||
+            chestRewards != null ||
+            pendingLevelUp != null;
 
         return Scaffold(
           body: Stack(
@@ -308,20 +315,20 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
-              if (_controller.levelUpNotice != null && _playerAccepted && _jobChanged)
+              if (pendingClassEvolution != null && _playerAccepted && _jobChanged)
                 Positioned.fill(
-                  child: IgnorePointer(
-                    child: Container(
-                      alignment: Alignment.center,
-                      color: const Color(0x2203080F),
-                      padding: const EdgeInsets.symmetric(horizontal: 26),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 420),
-                        child: LevelUpOverlay(
-                          level: _controller.levelUpNotice!,
-                          primary: _paletteForIndex(selectedIndex).primary,
-                          secondary: _paletteForIndex(selectedIndex).secondary,
-                        ),
+                  child: Container(
+                    color: const Color(0xC4060A10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 28,
+                    ),
+                    child: Center(
+                      child: ClassEvolutionOverlay(
+                        previousClass: pendingClassEvolution.previousClass,
+                        nextClass: pendingClassEvolution.nextClass,
+                        palette: _paletteForIndex(selectedIndex),
+                        onDismiss: _controller.clearClassEvolutionNotice,
                       ),
                     ),
                   ),
@@ -329,7 +336,7 @@ class _HomePageState extends State<HomePage> {
               if (_controller.rewardNotice != null &&
                   _playerAccepted &&
                   _jobChanged &&
-                  !isSystemOverlayActive)
+                  !hasCeremonialOverlay)
                 Positioned(
                   left: 24,
                   right: 24,
@@ -343,6 +350,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               if (chestRewards != null &&
+                  pendingClassEvolution == null &&
                   unlockedShadow == null &&
                   _playerAccepted &&
                   _jobChanged)
@@ -362,7 +370,10 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
-              if (unlockedShadow != null && _playerAccepted && _jobChanged)
+              if (unlockedShadow != null &&
+                  pendingClassEvolution == null &&
+                  _playerAccepted &&
+                  _jobChanged)
                 Positioned.fill(
                   child: Container(
                     color: const Color(0xC4060A10),
@@ -376,6 +387,25 @@ class _HomePageState extends State<HomePage> {
                         palette: _paletteForIndex(selectedIndex),
                         onDismiss: _controller.clearUnlockedShadowNotice,
                       ),
+                    ),
+                  ),
+                ),
+              if (pendingLevelUp != null &&
+                  pendingClassEvolution == null &&
+                  unlockedShadow == null &&
+                  chestRewards == null &&
+                  _playerAccepted &&
+                  _jobChanged)
+                Positioned.fill(
+                  child: Container(
+                    alignment: Alignment.center,
+                    color: const Color(0xC4060A10),
+                    padding: const EdgeInsets.symmetric(horizontal: 26),
+                    child: LevelUpOverlay(
+                      level: pendingLevelUp,
+                      primary: _paletteForIndex(selectedIndex).primary,
+                      secondary: _paletteForIndex(selectedIndex).secondary,
+                      onDismiss: _controller.clearLevelUpNotice,
                     ),
                   ),
                 ),

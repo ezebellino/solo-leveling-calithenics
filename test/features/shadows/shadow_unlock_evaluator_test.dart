@@ -231,6 +231,39 @@ void main() {
       expect(result.state.weeklySpecialStatus, 'completed');
     });
 
+    test('emits structured class evolution details when a quest changes class', () {
+      const evolvingProfile = HunterProfile(
+        alias: 'Evolving Hunter',
+        avatarUrl: '',
+        avatarImageBase64: '',
+        rank: 'E-Rank',
+        title: 'Humano novato',
+        level: 9,
+        currentXp: 100,
+        nextLevelXp: 120,
+        streakDays: 0,
+        shadowArmy: 0,
+        strength: 1,
+        agility: 1,
+        endurance: 1,
+        discipline: 0,
+      );
+      const service = PlayerSystemService(baseProfile: evolvingProfile);
+      final initialState = service.initialState();
+      final primedQuest = initialState.quests.first.copyWith(
+        progress: initialState.quests.first.target - 1,
+      );
+      final state = initialState.copyWith(
+        quests: [primedQuest, ...initialState.quests.skip(1)],
+      );
+
+      final result = service.advanceQuest(state, primedQuest);
+
+      expect(result.levelUp, 10);
+      expect(result.classEvolution?.previousClass, 'Humano novato');
+      expect(result.classEvolution?.nextClass, 'Despierto');
+    });
+
     test('special quest completion can unlock a shadow from updated counters', () {
       const advancedProfile = HunterProfile(
         alias: 'Test Hunter',
@@ -459,6 +492,52 @@ void main() {
       controller.clearChestRewardNotice();
 
       expect(controller.pendingChestRewards, isNull);
+    });
+
+    test('keeps level-up and class evolution notices pending until cleared', () async {
+      const evolvingProfile = HunterProfile(
+        alias: 'System Hunter',
+        avatarUrl: '',
+        avatarImageBase64: '',
+        rank: 'E-Rank',
+        title: 'Humano novato',
+        level: 9,
+        currentXp: 100,
+        nextLevelXp: 120,
+        streakDays: 0,
+        shadowArmy: 0,
+        strength: 1,
+        agility: 1,
+        endurance: 1,
+        discipline: 0,
+      );
+      final storage = _MemoryPlayerStateRepository();
+      const system = PlayerSystemService(baseProfile: evolvingProfile);
+      final initialState = system.initialState();
+      final primedQuest = initialState.quests.first.copyWith(
+        progress: initialState.quests.first.target - 1,
+      );
+      storage.state = initialState.copyWith(
+        quests: [primedQuest, ...initialState.quests.skip(1)],
+      );
+      final controller = HomeController(
+        storage: storage,
+        system: system,
+      );
+
+      await controller.load();
+      await controller.advanceQuest(controller.playerState!.quests.first);
+
+      expect(controller.pendingLevelUp, isNotNull);
+      expect(controller.pendingLevelUp, 10);
+      expect(controller.pendingClassEvolution?.previousClass, 'Humano novato');
+      expect(controller.pendingClassEvolution?.nextClass, 'Despierto');
+
+      controller.clearLevelUpNotice();
+      controller.clearClassEvolutionNotice();
+
+      expect(controller.pendingLevelUp, isNull);
+      expect(controller.pendingClassEvolution, isNull);
     });
   });
 }

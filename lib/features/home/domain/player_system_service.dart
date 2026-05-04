@@ -9,17 +9,27 @@ import 'hunter_profile.dart';
 import 'player_state.dart';
 import 'workout_day.dart';
 
+class ClassEvolutionNotice {
+  const ClassEvolutionNotice({
+    required this.previousClass,
+    required this.nextClass,
+  });
+
+  final String previousClass;
+  final String nextClass;
+}
+
 class PlayerSystemUpdate {
   const PlayerSystemUpdate({
     required this.state,
     this.levelUp,
-    this.classChange,
+    this.classEvolution,
     this.notices = const [],
   });
 
   final PlayerState state;
   final int? levelUp;
-  final String? classChange;
+  final ClassEvolutionNotice? classEvolution;
   final List<String> notices;
 }
 
@@ -231,7 +241,12 @@ class PlayerSystemService {
         lastUnlockedShadowId: lastUnlockedShadowId,
       ),
       levelUp: profile.level > previousLevel ? profile.level : null,
-      classChange: profile.title != previousClass ? profile.title : null,
+      classEvolution: profile.title != previousClass
+          ? ClassEvolutionNotice(
+              previousClass: previousClass,
+              nextClass: profile.title,
+            )
+          : null,
       notices: notices,
     );
   }
@@ -297,7 +312,12 @@ class PlayerSystemService {
         lastUnlockedShadowId: lastUnlockedShadowId,
       ),
       levelUp: profile.level > previousLevel ? profile.level : null,
-      classChange: profile.title != previousClass ? profile.title : null,
+      classEvolution: profile.title != previousClass
+          ? ClassEvolutionNotice(
+              previousClass: previousClass,
+              nextClass: profile.title,
+            )
+          : null,
       notices: notices,
     );
   }
