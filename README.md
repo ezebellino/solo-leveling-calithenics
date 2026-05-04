@@ -20,18 +20,23 @@ No puedo evaluar los "puntos e instrucciones" de la otra IA porque no estan en e
 
 ## Estado actual
 
-Este repo arranca con una base manual de Flutter:
+El repo ya no esta solo en etapa visual. Hoy tiene una base funcional y una primera capa arquitectonica seria:
 
-- estructura modular por features;
-- tema oscuro con acento esmeralda;
-- pantalla inicial con progreso, quests y rutina semanal mock;
-- modelos semilla para evolucionar hacia backend real.
+- Flutter con `Riverpod` para el vertical inicial de bootstrap del jugador;
+- `FastAPI` modularizando el flujo `player bootstrap / progreso base`;
+- logging y manejo de errores centralizados en frontend y backend;
+- `Alembic` como camino formal de migraciones;
+- sincronizacion inicial entre app y backend desplegado.
 
 ## Estructura
 
 ```text
 backend/
+  alembic/
   app/
+    core/
+    modules/
+      player/
   Dockerfile
   requirements.txt
   .env.example
@@ -39,23 +44,26 @@ lib/
   app.dart
   main.dart
   core/
-    router/
+    errors/
+    logging/
+    network/
+    providers/
     theme/
   features/
     home/
       domain/
       presentation/
+    player/
+      application/
+      data/
+      domain/
 ```
 
 ## Estado del entorno
 
 El proyecto ya fue inicializado con Flutter y se dejo un SDK local en `tools/flutter` para trabajo inmediato. Ese SDK esta ignorado en Git para no subir gigas innecesarios al repo.
 
-Tambien se dejo un backend `FastAPI` en `backend/`, preparado para desplegarse como servicio separado en Railway.
-
-Ese backend ya quedo desplegado en Railway en:
-
-- [backend-api-clean-production.up.railway.app](https://backend-api-clean-production.up.railway.app)
+Tambien se dejo un backend `FastAPI` en `backend/`, preparado para desplegarse como servicio separado en Railway. La app hoy consume el servicio remoto configurado en produccion mientras la base local sigue creciendo por fases.
 
 ## Ejecucion local
 
@@ -65,6 +73,14 @@ Desde la raiz del repo podes usar:
 2. `.\flutterw.ps1 pub get`
 3. `.\flutterw.ps1 run -d windows`
 4. `.\flutterw.ps1 run -d chrome`
+
+Para levantar el backend local:
+
+1. `cd backend`
+2. `py -3 -m venv .venv`
+3. `. .venv\Scripts\Activate.ps1`
+4. `pip install -r requirements.txt`
+5. `py -3 -m uvicorn app.main:app --reload`
 
 Para correr en Android todavia falta instalar Android Studio o al menos Android SDK y luego configurar `flutter config --android-sdk`.
 
@@ -104,6 +120,22 @@ Ademas, la capa de base de datos ya quedo preparada:
 - `Postgres` listo para usarse cuando Railway exponga `DATABASE_URL`;
 - modelos iniciales para usuario, progreso, inventario y quests;
 - seed automatico del jugador base al arrancar.
+
+## Phase 1 Baseline
+
+La primera fase del refactor agresivo deja esta base:
+
+- `Riverpod` ya gobierna el bootstrap del jugador y el fallback remoto/local;
+- `HomeController` deja de ser la fuente inicial de carga y pasa a concentrarse en la logica del juego;
+- backend con `app/core` y `app/modules/player` como primer modulo real;
+- `Alembic` agregado como baseline de migraciones;
+- tests dedicados para:
+  - mapeo de errores,
+  - repository bootstrap,
+  - controller bootstrap,
+  - contrato backend del jugador.
+
+Esta fase no migra toda la app. Construye la base defendible para seguir con `quests`, `inventory`, `shadows` y `sharing` sin volver a mezclar UI, dominio y acceso a datos.
 
 Referencias oficiales Railway:
 - FastAPI guide: https://docs.railway.com/guides/fastapi

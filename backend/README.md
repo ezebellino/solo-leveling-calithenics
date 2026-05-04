@@ -4,16 +4,18 @@ Backend preparado para desplegarse como servicio en Railway.
 
 Estado actual:
 
-- servicio activo Railway: `backend-api-clean`
-- dominio publico: `https://backend-api-clean-production.up.railway.app`
-- base de datos por defecto en desarrollo: `SQLite`
-- base de datos objetivo en produccion: `Postgres` via `DATABASE_URL`
+- backend listo para `SQLite` local y `Postgres` via `DATABASE_URL`
+- `Alembic` agregado como baseline de migraciones
+- primer modulo real: `app/modules/player`
+- `app/core` concentra config, DB, logging, errores y request context
 
-## Endpoints iniciales
+## Endpoints actuales
 
 - `GET /`
 - `GET /health`
 - `GET /api/v1/bootstrap`
+- `GET /api/v1/player`
+- `PATCH /api/v1/player/progress`
 
 ## Desarrollo local
 
@@ -26,6 +28,18 @@ uvicorn app.main:app --reload
 ```
 
 Con la configuracion actual, si no definis `DATABASE_URL`, el backend crea `solo_leveling.db` local y siembra un jugador base con progreso, inventario y quests iniciales.
+
+## Migraciones
+
+Inicializar o inspeccionar migraciones:
+
+```powershell
+cd backend
+py -3 -m alembic current
+py -3 -m alembic upgrade head
+```
+
+`Phase 1` deja a `Alembic` como camino oficial para cambios de esquema. El arranque del backend ya no debe ser el lugar donde se inventan tablas nuevas.
 
 ## Deploy en Railway
 
@@ -59,3 +73,27 @@ Pasos en Railway:
 - Path: `/health`
 
 El healthcheck ahora informa tambien el estado de la base de datos.
+
+## Arquitectura actual
+
+La estructura objetivo ya quedo iniciada:
+
+```text
+backend/
+  alembic/
+  app/
+    core/
+      config.py
+      database.py
+      errors.py
+      logging.py
+      request_context.py
+    modules/
+      player/
+        api/
+        application/
+        domain/
+        infrastructure/
+```
+
+El siguiente paso natural es repetir este patron para `quests`, `inventory`, `shadows` y `system`.
