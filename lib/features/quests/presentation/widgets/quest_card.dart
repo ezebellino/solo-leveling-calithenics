@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../domain/daily_quest.dart';
-import 'holographic_panel.dart';
+import '../../../home/domain/daily_quest.dart';
+import '../../../home/presentation/widgets/holographic_panel.dart';
 
 class QuestCard extends StatefulWidget {
   const QuestCard({
@@ -11,6 +11,7 @@ class QuestCard extends StatefulWidget {
     required this.highlight,
     required this.onAdvance,
     this.isSpecial = false,
+    this.isSubmitting = false,
     super.key,
   });
 
@@ -20,6 +21,7 @@ class QuestCard extends StatefulWidget {
   final Color highlight;
   final VoidCallback onAdvance;
   final bool isSpecial;
+  final bool isSubmitting;
 
   @override
   State<QuestCard> createState() => _QuestCardState();
@@ -95,14 +97,14 @@ class _QuestCardState extends State<QuestCard> {
                           child: Align(
                             alignment: Alignment.centerLeft,
                             child: FractionallySizedBox(
-                              widthFactor: widget.quest.completionRate.clamp(0, 1),
+                              widthFactor: widget.quest.completionRate.clamp(
+                                0,
+                                1,
+                              ),
                               child: Container(
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
-                                    colors: [
-                                      widget.primary,
-                                      widget.secondary,
-                                    ],
+                                    colors: [widget.primary, widget.secondary],
                                   ),
                                 ),
                               ),
@@ -114,7 +116,9 @@ class _QuestCardState extends State<QuestCard> {
                       Text(
                         '${widget.quest.rewardXp} XP',
                         style: theme.textTheme.labelLarge?.copyWith(
-                          color: widget.isSpecial ? widget.highlight : widget.secondary,
+                          color: widget.isSpecial
+                              ? widget.highlight
+                              : widget.secondary,
                           letterSpacing: 1.4,
                         ),
                       ),
@@ -132,7 +136,9 @@ class _QuestCardState extends State<QuestCard> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: widget.quest.isCompleted ? null : widget.onAdvance,
+                      onPressed: widget.quest.isCompleted || widget.isSubmitting
+                          ? null
+                          : widget.onAdvance,
                       style: TextButton.styleFrom(
                         foregroundColor: widget.quest.isCompleted
                             ? Colors.white38
@@ -150,13 +156,17 @@ class _QuestCardState extends State<QuestCard> {
                       child: Text(
                         widget.quest.isCompleted
                             ? '[ Mision completa ]'
+                            : widget.isSubmitting
+                            ? '[ Procesando ]'
                             : '[ Avanzar mision ]',
                         style: theme.textTheme.labelLarge?.copyWith(
                           letterSpacing: 1.0,
                           fontWeight: FontWeight.w700,
                           color: widget.quest.isCompleted
                               ? Colors.white38
-                              : (widget.isSpecial ? widget.highlight : widget.secondary),
+                              : (widget.isSpecial
+                                    ? widget.highlight
+                                    : widget.secondary),
                         ),
                       ),
                     ),

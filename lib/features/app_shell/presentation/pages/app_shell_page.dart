@@ -14,7 +14,6 @@ import '../../../home/domain/training_path.dart';
 import '../../../home/domain/workout_day.dart';
 import '../../../home/presentation/controllers/home_controller.dart';
 import '../../../home/presentation/pages/hunter_tab.dart';
-import '../../../home/presentation/pages/quest_tab.dart';
 import '../../../home/presentation/pages/stats_tab.dart';
 import '../../../home/presentation/pages/system_tab.dart';
 import '../../../home/presentation/widgets/chest_reward_overlay.dart';
@@ -29,6 +28,9 @@ import '../../../shadows/presentation/widgets/shadow_unlock_overlay.dart';
 import '../../../system/application/system_overlay_controller.dart';
 import '../../../system/application/system_overlay_state.dart';
 import '../../../system/presentation/widgets/system_overlay_stack.dart';
+import '../../../quests/application/quest_action_handler.dart';
+import '../../../quests/application/quest_actions_controller.dart';
+import '../../../quests/presentation/pages/quests_page.dart';
 import '../../application/app_shell_controller.dart';
 import '../../application/app_shell_state.dart';
 import '../widgets/app_shell_frame.dart';
@@ -530,21 +532,29 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
   Widget _buildCurrentTab(int selectedIndex) {
     switch (selectedIndex) {
       case 1:
-        return QuestTab(
-          profile: _profileState,
-          quests: _quests,
-          specialQuest: _weeklySpecialQuest,
-          specialQuestStatus: _weeklySpecialStatus,
-          inventory: _inventory,
-          xpBoostArmed: _xpBoostArmed,
-          trainingPath: _trainingPath,
-          selectedStageIndex: _selectedStageIndex,
-          onQuestAdvance: _controller!.advanceQuest,
-          onSpecialAdvance: _controller!.advanceSpecialQuest,
-          onSpecialDecision: _controller!.decideSpecialQuest,
-          onUseXpBoost: _controller!.useXpBoost,
-          onUseReroll: _controller!.useReroll,
-          palette: _questPalette,
+        return ProviderScope(
+          overrides: [
+            questActionHandlerProvider.overrideWithValue(
+              QuestActionHandler(
+                advanceQuest: _controller!.advanceQuest,
+                advanceSpecialQuest: _controller!.advanceSpecialQuest,
+                decideSpecialQuest: _controller!.decideSpecialQuest,
+                useXpBoost: _controller!.useXpBoost,
+                useReroll: _controller!.useReroll,
+              ),
+            ),
+          ],
+          child: QuestsPage(
+            profile: _profileState,
+            quests: _quests,
+            specialQuest: _weeklySpecialQuest,
+            specialQuestStatus: _weeklySpecialStatus,
+            inventory: _inventory,
+            xpBoostArmed: _xpBoostArmed,
+            trainingPath: _trainingPath,
+            selectedStageIndex: _selectedStageIndex,
+            palette: _questPalette,
+          ),
         );
       case 2:
         return StatsTab(
