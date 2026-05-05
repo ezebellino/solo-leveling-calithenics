@@ -48,15 +48,33 @@ lib/
     logging/
     network/
     providers/
+    router/
     theme/
   features/
+    app_shell/
+      application/
+      presentation/
     home/
+      data/
       domain/
+      presentation/
+    inventory/
+      application/
       presentation/
     player/
       application/
       data/
       domain/
+      presentation/
+    quests/
+      application/
+      presentation/
+    shadows/
+      domain/
+      presentation/
+    system/
+      application/
+      presentation/
 ```
 
 ## Estado del entorno
@@ -136,6 +154,65 @@ La primera fase del refactor agresivo deja esta base:
   - contrato backend del jugador.
 
 Esta fase no migra toda la app. Construye la base defendible para seguir con `quests`, `inventory`, `shadows` y `sharing` sin volver a mezclar UI, dominio y acceso a datos.
+
+## Phase 2 Baseline
+
+La segunda fase del refactor agresivo ya dejo el frontend en una forma mucho mas reconocible:
+
+- `app_shell` ahora es la frontera superior visible de la app;
+- `system` es owner de overlays y ventanas ceremoniales del Sistema;
+- `quests` tiene ownership propio de flujo y presentacion de misiones;
+- `inventory` ya concentra panel, acciones y cofre/recompensas;
+- `player` ya aloja las tabs reales de perfil y stats;
+- `home` dejo de ser el bucket principal de crecimiento y queda como compatibilidad + dominio/datos compartidos temporales.
+
+### Frontend actual
+
+```text
+lib/features/
+  app_shell/
+    application/
+    presentation/
+  home/
+    data/
+    domain/
+    presentation/
+  inventory/
+    application/
+    presentation/
+  player/
+    application/
+    data/
+    domain/
+    presentation/
+  quests/
+    application/
+    presentation/
+  shadows/
+    domain/
+    presentation/
+  system/
+    application/
+    presentation/
+```
+
+### Que sigue quedando en `home`
+
+Todavia viven ahi piezas compartidas que no bloquean la escalabilidad inmediata:
+
+- modelos de dominio ya usados por varias features (`daily_quest`, `hunter_profile`, `training_path`, `player_state`, `player_system_service`);
+- clientes/repositorios legacy que van a reacomodarse en fases siguientes;
+- widgets visuales reutilizados del HUD (`holographic_panel`, `screen_frame`, `section_palette`, `system_badge`, `training_widgets`).
+
+El objetivo ya no es hacer crecer `home`, sino seguir extrayendo simetria entre frontend y backend sin romper el producto.
+
+### Verificacion de Phase 2
+
+Se verifico al cerrar la fase:
+
+- tests focalizados de `app_shell`, `system`, `quests` e `inventory`;
+- `flutter analyze` sobre el scope refactorizado;
+- arranque real del frontend en `web-server` con respuesta `200` en `http://127.0.0.1:7362`.
 
 Referencias oficiales Railway:
 - FastAPI guide: https://docs.railway.com/guides/fastapi
