@@ -217,3 +217,109 @@ Se verifico al cerrar la fase:
 Referencias oficiales Railway:
 - FastAPI guide: https://docs.railway.com/guides/fastapi
 - Start command: https://docs.railway.com/guides/start-command
+
+## Phase 3 Baseline
+
+La tercera fase deja al backend mucho mas simetrico respecto del frontend:
+
+- `player` deja de ser el unico modulo real;
+- `quests`, `inventory`, `shadows` y `system` ya tienen ownership propio;
+- `main.py` queda orientado a composicion;
+- `app/models.py` deja de ser owner de crecimiento;
+- `app/schemas.py` fue retirado;
+- `app/services.py` queda reducido a inicializacion/compatibilidad minima.
+
+### Backend actual
+
+```text
+backend/
+  alembic/
+    versions/
+  app/
+    core/
+      config.py
+      database.py
+      errors.py
+      logging.py
+      request_context.py
+    modules/
+      player/
+        api/
+        application/
+        domain/
+        infrastructure/
+      quests/
+        api/
+        application/
+        domain/
+        infrastructure/
+      inventory/
+        api/
+        application/
+        domain/
+        infrastructure/
+      shadows/
+        api/
+        application/
+        domain/
+        infrastructure/
+      system/
+        api/
+        application/
+        domain/
+        infrastructure/
+    main.py
+```
+
+### Surface backend vigente
+
+- `GET /`
+- `GET /health`
+- `GET /api/v1/bootstrap`
+- `GET /api/v1/player`
+- `PATCH /api/v1/player/progress`
+- `GET /api/v1/quests/today`
+- `POST /api/v1/quests/{id}/advance`
+- `POST /api/v1/quests/{id}/complete`
+- `GET /api/v1/inventory`
+- `GET /api/v1/shadows/progression`
+
+### Resultado arquitectonico
+
+Con `Phase 2 + Phase 3`, la simetria general del proyecto ya se ve asi:
+
+- Flutter:
+  - `app_shell`
+  - `player`
+  - `quests`
+  - `inventory`
+  - `shadows`
+  - `system`
+- FastAPI:
+  - `player`
+  - `quests`
+  - `inventory`
+  - `shadows`
+  - `system`
+
+Esto no significa que todo este terminado. Significa que el patron de diseño ya es reconocible y defendible para seguir creciendo sin volver al monolito.
+
+### Verificacion de Phase 3
+
+Se verifico al cerrar la fase:
+
+- `py -3 -m pytest tests -q` dentro de `backend/`
+- `py -3 -m compileall backend\app backend\tests`
+
+Resultado de la baseline:
+
+- `24 passed`
+- warnings viejos de alias en `Pydantic` todavia presentes en `test_error_handling`
+
+### Siguiente paso natural
+
+Despues de `Phase 3`, el paso mas sano es reforzar integracion y observabilidad:
+
+- endurecer sync frontend/backend;
+- definir auth y sharing sobre una base ya modular;
+- mejorar observabilidad productiva sin volver a mezclar responsabilidades.
