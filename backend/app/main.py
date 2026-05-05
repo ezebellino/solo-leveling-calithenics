@@ -11,19 +11,11 @@ from app.core.logging import configure_logging
 from app.core.request_context import request_logging_middleware
 from app.database import get_db
 from app.modules.player.api.router import router as player_router
-from app.schemas import (
-    AdvanceQuestRequest,
-    DailyQuestResponse,
-    HealthResponse,
-    InventoryItemResponse,
-    QuestListResponse,
-)
+from app.modules.quests.api.router import router as quests_router
+from app.schemas import HealthResponse, InventoryItemResponse
 from app.services import (
-    advance_quest,
     build_database_status,
-    complete_quest,
     get_inventory,
-    get_today_quests,
     initialize_database,
 )
 
@@ -46,6 +38,7 @@ app = FastAPI(
 app.add_exception_handler(AppError, app_error_handler)
 app.middleware("http")(request_logging_middleware)
 app.include_router(player_router)
+app.include_router(quests_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -72,34 +65,6 @@ def healthcheck() -> HealthResponse:
         timestamp=datetime.now(timezone.utc),
         database=build_database_status(),
     )
-
-
-@app.get(f"{settings.api_prefix}/quests/today", response_model=QuestListResponse, tags=["quests"])
-def today_quests(db: Session = Depends(get_db)) -> QuestListResponse:
-    return get_today_quests(db)
-
-
-@app.post(
-    f"{settings.api_prefix}/quests/{{quest_id}}/advance",
-    response_model=DailyQuestResponse,
-    tags=["quests"],
-)
-def post_advance_quest(
-    quest_id: str,
-    payload: AdvanceQuestRequest,
-    db: Session = Depends(get_db),
-) -> DailyQuestResponse:
-    return advance_quest(db, quest_id, payload.amount)
-
-
-@app.post(
-    f"{settings.api_prefix}/quests/{{quest_id}}/complete",
-    response_model=DailyQuestResponse,
-    tags=["quests"],
-)
-def post_complete_quest(quest_id: str, db: Session = Depends(get_db)) -> DailyQuestResponse:
-    return complete_quest(db, quest_id)
-
 
 @app.get(
     f"{settings.api_prefix}/inventory",

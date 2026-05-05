@@ -3,14 +3,20 @@ from __future__ import annotations
 import importlib
 import sys
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
+
+
 def _reset_app_modules() -> None:
     for module_name in list(sys.modules):
-        if module_name.startswith("app."):
+        if module_name == "app" or module_name.startswith("app."):
             sys.modules.pop(module_name, None)
 
 

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
 from app.database import Base
@@ -47,7 +47,8 @@ class User(TimestampMixin, Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
-    quests: Mapped[list[DailyQuest]] = relationship(
+    quests: Mapped[list["DailyQuest"]] = relationship(
+        "DailyQuest",
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -85,24 +86,20 @@ class InventoryItem(TimestampMixin, Base):
     user: Mapped[User] = relationship(back_populates="inventory_items")
 
 
-class DailyQuest(TimestampMixin, Base):
-    __tablename__ = "daily_quests"
+def _register_module_models() -> None:
+    # Import module-owned ORM models so SQLAlchemy can resolve relationships
+    # even when callers import app.models directly.
+    import importlib
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
-    quest_date: Mapped[date] = mapped_column(Date, default=date.today)
-    title: Mapped[str] = mapped_column(String(120))
-    description: Mapped[str] = mapped_column(Text)
-    xp_reward: Mapped[int] = mapped_column(Integer, default=120)
-    progress: Mapped[int] = mapped_column(Integer, default=0)
-    target: Mapped[int] = mapped_column(Integer, default=1)
-    is_special: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
+    importlib.import_module("app.modules.quests.infrastructure.models")
 
-    user: Mapped[User] = relationship(back_populates="quests")
+
+_register_module_models()
 
 
 def seed_default_data(session: Session) -> None:
+    from app.modules.quests.infrastructure.defaults import build_default_daily_quests
+
     existing_user = session.query(User).first()
     if existing_user is not None:
         return
@@ -134,39 +131,13 @@ def seed_default_data(session: Session) -> None:
         InventoryItem(code="xp_boost", name="Boost de XP", quantity=0),
         InventoryItem(code="quest_reroll", name="Re-roll de mision", quantity=0),
     ]
-    user.quests = [
-        DailyQuest(
-            title="Mision diaria: Entrenamiento de fuerza",
-            description="50 flexiones, 50 sentadillas, 50 abdominales y 3 km de caminata.",
-            xp_reward=120,
-            progress=0,
-            target=50,
-            is_special=False,
-        ),
-        DailyQuest(
-            title="Disciplina de sombra",
-            description="Mantener hollow hold y respiracion controlada por 90 segundos.",
-            xp_reward=90,
-            progress=0,
-            target=3,
-            is_special=False,
-        ),
-    ]
+    user.quests = build_default_daily_quests()
 
     session.add(user)
     session.commit()
 
 
 def reconcile_default_data(session: Session) -> None:
-    quests = session.query(DailyQuest).all()
-    changed = False
-    for quest in quests:
-        if quest.title == "Mision diaria: Entrenamiento de fuerza" and quest.target == 1:
-            quest.target = 50
-            changed = True
-        elif quest.title == "Disciplina de sombra" and quest.target == 1:
-            quest.target = 3
-            changed = True
+    from app.modules.quests.infrastructure.defaults import reconcile_default_daily_quests
 
-    if changed:
-        session.commit()
+    reconcile_default_daily_quests(session)

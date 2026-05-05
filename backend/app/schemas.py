@@ -48,19 +48,6 @@ class InventoryItemResponse(BaseModel):
     quantity: int
 
 
-class DailyQuestResponse(BaseModel):
-    id: str
-    title: str
-    detail: str
-    reward_xp: int = Field(alias="rewardXp")
-    progress: int
-    target: int
-    is_special: bool = Field(alias="isSpecial")
-    is_completed: bool = Field(alias="isCompleted")
-
-    model_config = {"populate_by_name": True}
-
-
 class BootstrapResponse(BaseModel):
     player: PlayerSummary
     stage: StageSummary
@@ -74,10 +61,6 @@ class PlayerOverviewResponse(BaseModel):
     completed_days: int = Field(alias="completedDays")
 
     model_config = {"populate_by_name": True}
-
-
-class QuestListResponse(BaseModel):
-    quests: list[DailyQuestResponse]
 
 
 class UpdatePlayerProgressRequest(BaseModel):
@@ -101,6 +84,3 @@ class UpdatePlayerProgressRequest(BaseModel):
 
     model_config = {"populate_by_name": True}
 
-
-class AdvanceQuestRequest(BaseModel):
-    amount: int = 1
