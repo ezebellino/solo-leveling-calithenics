@@ -1,3 +1,3 @@
-from app.models import InventoryItem, PlayerProgress, User
+from app.models import PlayerProgress, User
 
-__all__ = ["InventoryItem", "PlayerProgress", "User"]
+__all__ = ["PlayerProgress", "User"]

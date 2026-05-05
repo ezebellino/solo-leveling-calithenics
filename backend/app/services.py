@@ -1,14 +1,9 @@
-from __future__ import annotations
-
-from collections.abc import Iterable
-
 from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
 from app.core.logging import logger
 from app.database import check_database_connection, engine
-from app.models import InventoryItem, User, reconcile_default_data, seed_default_data
-from app.modules.player.api.schemas import InventoryItemResponse
+from app.models import reconcile_default_data, seed_default_data
 from app.schemas import DatabaseStatus
 
 
@@ -41,26 +36,3 @@ def build_database_status() -> DatabaseStatus:
         detail=detail,
     )
 
-
-def _get_default_user(session: Session) -> User:
-    user = session.query(User).first()
-    if user is None or user.progress is None:
-        seed_default_data(session)
-        user = session.query(User).first()
-
-    if user is None or user.progress is None:
-        raise RuntimeError("No se pudo inicializar el jugador base.")
-
-    return user
-
-
-def _serialize_inventory(items: Iterable[InventoryItem]) -> list[InventoryItemResponse]:
-    return [
-        InventoryItemResponse(code=item.code, name=item.name, quantity=item.quantity)
-        for item in items
-    ]
-
-
-def get_inventory(session: Session) -> list[InventoryItemResponse]:
-    user = _get_default_user(session)
-    return _serialize_inventory(user.inventory_items)

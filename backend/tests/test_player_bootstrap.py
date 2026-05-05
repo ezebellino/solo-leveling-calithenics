@@ -20,5 +20,9 @@ def test_player_overview_returns_inventory_and_completed_days(client) -> None:
     assert response.status_code == 200
     payload = response.json()
 
-    assert "inventory" in payload
+    assert payload["inventory"] == [
+        {"code": "streak_freeze", "name": "Freeze de racha", "quantity": 0},
+        {"code": "xp_boost", "name": "Boost de XP", "quantity": 0},
+        {"code": "quest_reroll", "name": "Re-roll de mision", "quantity": 0},
+    ]
     assert "completedDays" in payload

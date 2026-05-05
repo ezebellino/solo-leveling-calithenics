@@ -30,7 +30,9 @@ def client(tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) ->
 
     main = importlib.import_module("app.main")
     database = importlib.import_module("app.database")
+    modules = importlib.import_module("app.modules")
     importlib.import_module("app.models")
+    modules.register_module_models()
 
     database.Base.metadata.create_all(bind=database.engine)
 

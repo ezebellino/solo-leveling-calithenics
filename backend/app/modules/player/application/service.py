@@ -1,8 +1,8 @@
-from collections.abc import Iterable
-
 from sqlalchemy.orm import Session
 
-from app.models import InventoryItem, PlayerProgress, User
+from app.models import PlayerProgress, User
+from app.modules.inventory.application.service import list_default_user_inventory
+from app.modules.inventory.domain.entities import InventoryItemView
 from app.modules.player.api.schemas import (
     BootstrapResponse,
     InventoryItemResponse,
@@ -60,7 +60,7 @@ def _serialize_stage(user: User) -> StageSummary:
     )
 
 
-def _serialize_inventory(items: Iterable[InventoryItem]) -> list[InventoryItemResponse]:
+def _serialize_inventory(items: list[InventoryItemView]) -> list[InventoryItemResponse]:
     return [
         InventoryItemResponse(code=item.code, name=item.name, quantity=item.quantity)
         for item in items
@@ -98,7 +98,7 @@ def get_player_overview(
     return PlayerOverviewResponse(
         player=_serialize_player(user),
         stage=_serialize_stage(user),
-        inventory=_serialize_inventory(user.inventory_items),
+        inventory=_serialize_inventory(list_default_user_inventory(session)),
         completedDays=progress.completed_days,
     )
 

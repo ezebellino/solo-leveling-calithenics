@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
 from app.database import Base
@@ -43,7 +43,8 @@ class User(TimestampMixin, Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
-    inventory_items: Mapped[list[InventoryItem]] = relationship(
+    inventory_items: Mapped[list["InventoryItem"]] = relationship(
+        "InventoryItem",
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -72,32 +73,8 @@ class PlayerProgress(TimestampMixin, Base):
 
     user: Mapped[User] = relationship(back_populates="progress")
 
-
-class InventoryItem(TimestampMixin, Base):
-    __tablename__ = "inventory_items"
-    __table_args__ = (UniqueConstraint("user_id", "code", name="uq_inventory_item_user_code"),)
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
-    code: Mapped[str] = mapped_column(String(50))
-    name: Mapped[str] = mapped_column(String(80))
-    quantity: Mapped[int] = mapped_column(Integer, default=0)
-
-    user: Mapped[User] = relationship(back_populates="inventory_items")
-
-
-def _register_module_models() -> None:
-    # Import module-owned ORM models so SQLAlchemy can resolve relationships
-    # even when callers import app.models directly.
-    import importlib
-
-    importlib.import_module("app.modules.quests.infrastructure.models")
-
-
-_register_module_models()
-
-
 def seed_default_data(session: Session) -> None:
+    from app.modules.inventory.infrastructure.defaults import build_default_inventory_items
     from app.modules.quests.infrastructure.defaults import build_default_daily_quests
 
     existing_user = session.query(User).first()
@@ -126,11 +103,7 @@ def seed_default_data(session: Session) -> None:
         endurance=1,
         discipline=0,
     )
-    user.inventory_items = [
-        InventoryItem(code="streak_freeze", name="Freeze de racha", quantity=0),
-        InventoryItem(code="xp_boost", name="Boost de XP", quantity=0),
-        InventoryItem(code="quest_reroll", name="Re-roll de mision", quantity=0),
-    ]
+    user.inventory_items = build_default_inventory_items()
     user.quests = build_default_daily_quests()
 
     session.add(user)

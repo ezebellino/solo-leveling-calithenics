@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from app.modules.inventory.api.schemas import InventoryItemResponse
+
 
 class StageSummary(BaseModel):
     index: int
@@ -24,12 +26,6 @@ class PlayerSummary(BaseModel):
     discipline: int
 
     model_config = {"populate_by_name": True}
-
-
-class InventoryItemResponse(BaseModel):
-    code: str
-    name: str
-    quantity: int
 
 
 class BootstrapResponse(BaseModel):

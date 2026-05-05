@@ -1,25 +1,25 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.errors import AppError, app_error_handler
 from app.core.logging import configure_logging
 from app.core.request_context import request_logging_middleware
-from app.database import get_db
+from app.modules import register_module_models
+from app.modules.inventory.api.router import router as inventory_router
 from app.modules.player.api.router import router as player_router
 from app.modules.quests.api.router import router as quests_router
-from app.schemas import HealthResponse, InventoryItemResponse
+from app.schemas import HealthResponse
 from app.services import (
     build_database_status,
-    get_inventory,
     initialize_database,
 )
 
 configure_logging(settings.log_level)
+register_module_models()
 
 
 @asynccontextmanager
@@ -37,6 +37,7 @@ app = FastAPI(
 )
 app.add_exception_handler(AppError, app_error_handler)
 app.middleware("http")(request_logging_middleware)
+app.include_router(inventory_router)
 app.include_router(player_router)
 app.include_router(quests_router)
 
@@ -65,11 +66,3 @@ def healthcheck() -> HealthResponse:
         timestamp=datetime.now(timezone.utc),
         database=build_database_status(),
     )
-
-@app.get(
-    f"{settings.api_prefix}/inventory",
-    response_model=list[InventoryItemResponse],
-    tags=["inventory"],
-)
-def inventory(db: Session = Depends(get_db)) -> list[InventoryItemResponse]:
-    return get_inventory(db)
