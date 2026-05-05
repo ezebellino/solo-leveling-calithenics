@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from app.models import User, seed_default_data
+from app.modules.player.infrastructure.models import User, seed_default_data
 
 
 class PlayerRepository:

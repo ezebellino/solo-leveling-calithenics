@@ -1,6 +1,5 @@
 from sqlalchemy.orm import Session
 
-from app.models import PlayerProgress, User
 from app.modules.inventory.application.service import list_default_user_inventory
 from app.modules.inventory.domain.entities import InventoryItemView
 from app.modules.player.api.schemas import (
@@ -12,6 +11,7 @@ from app.modules.player.api.schemas import (
     UpdatePlayerProgressRequest,
 )
 from app.modules.player.domain.exceptions import InvalidPlayerProgressError
+from app.modules.player.infrastructure.models import PlayerProgress, User
 from app.modules.player.infrastructure.repository import PlayerRepository
 from app.modules.shadows.application.service import get_default_user_shadow_army_count
 

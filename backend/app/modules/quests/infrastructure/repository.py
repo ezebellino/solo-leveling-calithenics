@@ -2,7 +2,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from app.models import User
+from app.modules.player.infrastructure.models import User
 from app.modules.quests.infrastructure.models import DailyQuest
 
 

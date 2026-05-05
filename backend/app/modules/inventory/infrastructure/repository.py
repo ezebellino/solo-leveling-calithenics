@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from app.models import User
+from app.modules.player.infrastructure.models import User
 from app.modules.inventory.infrastructure.defaults import DEFAULT_INVENTORY_CODES
 from app.modules.inventory.infrastructure.models import InventoryItem
 

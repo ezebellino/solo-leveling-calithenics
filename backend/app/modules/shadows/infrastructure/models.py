@@ -7,11 +7,10 @@ from uuid import uuid4
 from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models import TimestampMixin
-from app.database import Base
+from app.database import Base, TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models import User
+    from app.modules.player.infrastructure.models import User
 
 
 def _utcnow() -> datetime:
@@ -30,4 +29,3 @@ class ShadowUnlock(TimestampMixin, Base):
     obtained_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     user: Mapped["User"] = relationship("User", back_populates="shadow_unlocks")
-

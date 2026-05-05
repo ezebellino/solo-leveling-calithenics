@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.logging import logger
 from app.database import engine
-from app.models import reconcile_default_data, seed_default_data
+from app.modules.player.infrastructure.models import reconcile_default_data, seed_default_data
 
 
 def initialize_database() -> None:
