@@ -53,6 +53,11 @@ class User(TimestampMixin, Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    shadow_unlocks: Mapped[list["ShadowUnlock"]] = relationship(
+        "ShadowUnlock",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class PlayerProgress(TimestampMixin, Base):

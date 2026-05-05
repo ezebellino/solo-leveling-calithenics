@@ -13,6 +13,7 @@ from app.modules.player.api.schemas import (
 )
 from app.modules.player.domain.exceptions import InvalidPlayerProgressError
 from app.modules.player.infrastructure.repository import PlayerRepository
+from app.modules.shadows.application.service import get_default_user_shadow_army_count
 
 
 def class_for_level(level: int) -> str:
@@ -29,7 +30,7 @@ def class_for_level(level: int) -> str:
     return "Humano novato"
 
 
-def _serialize_player(user: User) -> PlayerSummary:
+def _serialize_player(user: User, shadow_army_count: int) -> PlayerSummary:
     progress = user.progress
     if progress is None:
         raise RuntimeError("El jugador no tiene progreso asociado.")
@@ -43,7 +44,7 @@ def _serialize_player(user: User) -> PlayerSummary:
         currentXp=progress.current_xp,
         nextLevelXp=progress.next_level_xp,
         streakDays=progress.streak_days,
-        shadowArmy=progress.shadow_army,
+        shadowArmy=shadow_army_count,
         strength=progress.strength,
         agility=progress.agility,
         endurance=progress.endurance,
@@ -73,8 +74,9 @@ def get_player_bootstrap(
 ) -> BootstrapResponse:
     repo = repository or PlayerRepository()
     user = repo.get_default_user(session)
+    shadow_army_count = get_default_user_shadow_army_count(session)
     return BootstrapResponse(
-        player=_serialize_player(user),
+        player=_serialize_player(user, shadow_army_count),
         stage=_serialize_stage(user),
         featureFlags={
             "local_sync_ready": True,
@@ -94,9 +96,10 @@ def get_player_overview(
     progress = user.progress
     if progress is None:
         raise RuntimeError("El jugador no tiene progreso asociado.")
+    shadow_army_count = get_default_user_shadow_army_count(session)
 
     return PlayerOverviewResponse(
-        player=_serialize_player(user),
+        player=_serialize_player(user, shadow_army_count),
         stage=_serialize_stage(user),
         inventory=_serialize_inventory(list_default_user_inventory(session)),
         completedDays=progress.completed_days,

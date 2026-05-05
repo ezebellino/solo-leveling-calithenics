@@ -8,7 +8,7 @@ from app.schemas import DatabaseStatus
 
 
 def initialize_database() -> None:
-    required_tables = {"daily_quests", "inventory_items", "player_progress", "users"}
+    required_tables = {"daily_quests", "inventory_items", "player_progress", "shadow_unlocks", "users"}
     try:
         existing_tables = set(inspect(engine).get_table_names())
     except Exception as exc:  # pragma: no cover - startup safety

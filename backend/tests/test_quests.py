@@ -122,12 +122,16 @@ def test_importing_app_models_registers_quest_module_without_legacy_export(
         if module_name == "app" or module_name.startswith("app."):
             sys.modules.pop(module_name, None)
 
+    modules = importlib.import_module("app.modules")
     legacy_models = importlib.import_module("app.models")
     database = importlib.import_module("app.database")
 
-    assert "app.modules.quests.infrastructure.models" in sys.modules
+    assert "app.modules.quests.infrastructure.models" not in sys.modules
     assert not hasattr(legacy_models, "DailyQuest")
 
+    modules.register_module_models()
+
+    assert "app.modules.quests.infrastructure.models" in sys.modules
     database.Base.metadata.create_all(bind=database.engine)
 
 

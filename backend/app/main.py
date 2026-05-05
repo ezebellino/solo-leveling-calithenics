@@ -12,6 +12,7 @@ from app.modules import register_module_models
 from app.modules.inventory.api.router import router as inventory_router
 from app.modules.player.api.router import router as player_router
 from app.modules.quests.api.router import router as quests_router
+from app.modules.shadows.api.router import router as shadows_router
 from app.schemas import HealthResponse
 from app.services import (
     build_database_status,
@@ -40,6 +41,7 @@ app.middleware("http")(request_logging_middleware)
 app.include_router(inventory_router)
 app.include_router(player_router)
 app.include_router(quests_router)
+app.include_router(shadows_router)
 
 app.add_middleware(
     CORSMiddleware,
