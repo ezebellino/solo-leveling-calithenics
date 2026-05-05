@@ -1,5 +1,4 @@
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,11 +12,8 @@ from app.modules.inventory.api.router import router as inventory_router
 from app.modules.player.api.router import router as player_router
 from app.modules.quests.api.router import router as quests_router
 from app.modules.shadows.api.router import router as shadows_router
-from app.schemas import HealthResponse
-from app.services import (
-    build_database_status,
-    initialize_database,
-)
+from app.modules.system.api.router import router as system_router
+from app.services import initialize_database
 
 configure_logging(settings.log_level)
 register_module_models()
@@ -42,6 +38,7 @@ app.include_router(inventory_router)
 app.include_router(player_router)
 app.include_router(quests_router)
 app.include_router(shadows_router)
+app.include_router(system_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -50,21 +47,3 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.get("/", tags=["meta"])
-def root() -> dict[str, str]:
-    return {
-        "service": settings.app_name,
-        "message": "Solo Leveling Calisthenics backend online",
-    }
-
-
-@app.get("/health", response_model=HealthResponse, tags=["meta"])
-def healthcheck() -> HealthResponse:
-    return HealthResponse(
-        service=settings.app_name,
-        environment=settings.app_env,
-        timestamp=datetime.now(timezone.utc),
-        database=build_database_status(),
-    )

@@ -2,9 +2,8 @@ from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
 from app.core.logging import logger
-from app.database import check_database_connection, engine
+from app.database import engine
 from app.models import reconcile_default_data, seed_default_data
-from app.schemas import DatabaseStatus
 
 
 def initialize_database() -> None:
@@ -26,13 +25,4 @@ def initialize_database() -> None:
     with Session(engine) as session:
         seed_default_data(session)
         reconcile_default_data(session)
-
-
-def build_database_status() -> DatabaseStatus:
-    connected, detail = check_database_connection()
-    return DatabaseStatus(
-        status="connected" if connected else "error",
-        engine=engine.dialect.name,
-        detail=detail,
-    )
 
