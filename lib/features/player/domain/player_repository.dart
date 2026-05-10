@@ -1,5 +1,5 @@
-import 'player_snapshot.dart';
+import 'player_bootstrap_result.dart';
 
 abstract class PlayerRepository {
-  Future<PlayerSnapshot> bootstrap();
+  Future<PlayerBootstrapResult> bootstrap();
 }

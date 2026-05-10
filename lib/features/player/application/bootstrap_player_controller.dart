@@ -15,9 +15,9 @@ class BootstrapPlayerController extends Notifier<BootstrapPlayerState> {
     );
 
     try {
-      final snapshot = await ref.read(bootstrapPlayerUseCaseProvider).call();
+      final result = await ref.read(bootstrapPlayerUseCaseProvider).call();
       state = state.copyWith(
-        snapshot: snapshot,
+        result: result,
         isLoading: false,
         clearErrorMessage: true,
       );

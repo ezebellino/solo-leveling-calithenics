@@ -7,21 +7,30 @@ import 'package:solo_leveling_calisthenics/features/home/data/local_player_state
 import 'package:solo_leveling_calisthenics/features/player/data/player_api_client.dart';
 import 'package:solo_leveling_calisthenics/features/player/data/player_local_data_source.dart';
 import 'package:solo_leveling_calisthenics/features/player/data/player_repository_impl.dart';
+import 'package:solo_leveling_calisthenics/features/player/domain/player_bootstrap_result.dart';
 import 'package:solo_leveling_calisthenics/features/player/domain/player_snapshot.dart';
 
 void main() {
   group('PlayerRepositoryImpl.bootstrap', () {
     test('returns remote snapshot when bootstrap endpoints succeed', () async {
+      final localDataSource = _FakePlayerLocalDataSource(
+        result: PlayerBootstrapResult(
+          snapshot: _localSnapshot,
+          source: PlayerBootstrapSource.localCache,
+          contractVersion: 'cached-contract-v1',
+        ),
+      );
       final repository = PlayerRepositoryImpl(
         apiClient: _FakePlayerApiClient(
           bootstrapJson: _bootstrapJson,
           playerJson: _playerJson(completedDays: 12),
         ),
-        localDataSource: _FakePlayerLocalDataSource(snapshot: _localSnapshot),
+        localDataSource: localDataSource,
         logger: const AppLogger(),
       );
 
-      final snapshot = await repository.bootstrap();
+      final result = await repository.bootstrap();
+      final snapshot = result.snapshot;
 
       expect(snapshot.alias, 'Sung Jinwoo');
       expect(snapshot.rank, 'S-Rank');
@@ -30,19 +39,35 @@ void main() {
       expect(snapshot.currentXp, 720);
       expect(snapshot.nextLevelXp, 900);
       expect(snapshot.completedDays, 12);
+      expect(result.source, PlayerBootstrapSource.remote);
+      expect(result.contractVersion, PlayerApiClient.bootstrapContractVersion);
+      expect(localDataSource.savedSnapshot?.alias, 'Sung Jinwoo');
+      expect(
+        localDataSource.savedContractVersion,
+        PlayerApiClient.bootstrapContractVersion,
+      );
     });
 
     test('falls back to local snapshot when remote bootstrap fails', () async {
       final repository = PlayerRepositoryImpl(
         apiClient: _FakePlayerApiClient(error: const SocketException('offline')),
-        localDataSource: _FakePlayerLocalDataSource(snapshot: _localSnapshot),
+        localDataSource: _FakePlayerLocalDataSource(
+          result: PlayerBootstrapResult(
+            snapshot: _localSnapshot,
+            source: PlayerBootstrapSource.localCache,
+            contractVersion: 'cached-contract-v1',
+          ),
+        ),
         logger: const AppLogger(),
       );
 
-      final snapshot = await repository.bootstrap();
+      final result = await repository.bootstrap();
+      final snapshot = result.snapshot;
 
       expect(snapshot.alias, _localSnapshot.alias);
       expect(snapshot.completedDays, _localSnapshot.completedDays);
+      expect(result.source, PlayerBootstrapSource.localCache);
+      expect(result.contractVersion, 'cached-contract-v1');
     });
 
     test('throws mapped app exception when remote fails and local is empty', () async {
@@ -88,6 +113,9 @@ const _bootstrapJson = <String, dynamic>{
   },
   'featureFlags': <String, bool>{
     'local_sync_ready': true,
+  },
+  'sync': <String, dynamic>{
+    'contractVersion': '2026-05-10.player-bootstrap.v1',
   },
 };
 
@@ -136,13 +164,24 @@ class _FakePlayerApiClient extends PlayerApiClient {
 
 class _FakePlayerLocalDataSource extends PlayerLocalDataSource {
   _FakePlayerLocalDataSource({
-    this.snapshot,
+    this.result,
   }) : super(storage: _NoopLocalPlayerStateRepository());
 
-  final PlayerSnapshot? snapshot;
+  final PlayerBootstrapResult? result;
+  PlayerSnapshot? savedSnapshot;
+  String? savedContractVersion;
 
   @override
-  Future<PlayerSnapshot?> loadSnapshot() async => snapshot;
+  Future<PlayerBootstrapResult?> loadSnapshot() async => result;
+
+  @override
+  Future<void> saveSnapshot(
+    PlayerSnapshot snapshot, {
+    required String contractVersion,
+  }) async {
+    savedSnapshot = snapshot;
+    savedContractVersion = contractVersion;
+  }
 }
 
 class _NoopLocalPlayerStateRepository extends LocalPlayerStateRepository {}

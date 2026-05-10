@@ -4,6 +4,7 @@ import 'package:solo_leveling_calisthenics/core/errors/app_exception.dart';
 import 'package:solo_leveling_calisthenics/features/player/application/bootstrap_player_controller.dart';
 import 'package:solo_leveling_calisthenics/features/player/application/bootstrap_player_state.dart';
 import 'package:solo_leveling_calisthenics/features/player/application/bootstrap_player_use_case.dart';
+import 'package:solo_leveling_calisthenics/features/player/domain/player_bootstrap_result.dart';
 import 'package:solo_leveling_calisthenics/features/player/domain/player_repository.dart';
 import 'package:solo_leveling_calisthenics/features/player/domain/player_snapshot.dart';
 
@@ -38,6 +39,8 @@ void main() {
       final state = container.read(bootstrapPlayerControllerProvider);
       expect(state.snapshot?.alias, _snapshot.alias);
       expect(state.snapshot?.completedDays, _snapshot.completedDays);
+      expect(state.selectedSource, PlayerBootstrapSource.remote);
+      expect(state.contractVersion, 'test-contract-v1');
       expect(state.errorMessage, isNull);
       expect(states.any((entry) => entry.isLoading), isTrue);
     });
@@ -89,10 +92,14 @@ class _FakePlayerRepository implements PlayerRepository {
   final Object? error;
 
   @override
-  Future<PlayerSnapshot> bootstrap() async {
+  Future<PlayerBootstrapResult> bootstrap() async {
     if (error != null) {
       throw error!;
     }
-    return snapshot!;
+    return PlayerBootstrapResult(
+      snapshot: snapshot!,
+      source: PlayerBootstrapSource.remote,
+      contractVersion: 'test-contract-v1',
+    );
   }
 }

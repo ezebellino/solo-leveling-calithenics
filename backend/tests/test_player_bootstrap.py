@@ -10,6 +10,11 @@ def test_bootstrap_returns_player_stage_and_feature_flags(client) -> None:
     assert "player" in payload
     assert "stage" in payload
     assert "featureFlags" in payload
+    assert payload["sync"]["contractVersion"] == "2026-05-10.player-bootstrap.v1"
+    assert payload["sync"]["authoritativeSource"] == "remote"
+    assert payload["sync"]["fallbackPolicy"] == "local_cache_on_remote_failure"
+    assert "durableFields" in payload["sync"]
+    assert "uiFields" in payload["sync"]
     assert "currentXp" in payload["player"]
     assert "nextLevelXp" in payload["player"]
 

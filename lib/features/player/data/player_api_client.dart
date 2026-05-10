@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class PlayerApiClient {
+  static const bootstrapContractVersion = '2026-05-10.player-bootstrap.v1';
+
   PlayerApiClient({
     required this.baseUrl,
     http.Client? httpClient,

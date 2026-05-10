@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.modules.inventory.application.service import list_default_user_inventory
 from app.modules.inventory.domain.entities import InventoryItemView
 from app.modules.player.api.schemas import (
+    BootstrapSyncContractResponse,
     BootstrapResponse,
     InventoryItemResponse,
     PlayerOverviewResponse,
@@ -14,6 +15,33 @@ from app.modules.player.domain.exceptions import InvalidPlayerProgressError
 from app.modules.player.infrastructure.models import PlayerProgress, User
 from app.modules.player.infrastructure.repository import PlayerRepository
 from app.modules.shadows.application.service import get_default_user_shadow_army_count
+
+BOOTSTRAP_CONTRACT_VERSION = "2026-05-10.player-bootstrap.v1"
+BOOTSTRAP_DURABLE_FIELDS = [
+    "player.alias",
+    "player.avatarUrl",
+    "player.rank",
+    "player.title",
+    "player.level",
+    "player.currentXp",
+    "player.nextLevelXp",
+    "player.streakDays",
+    "player.shadowArmy",
+    "player.strength",
+    "player.agility",
+    "player.endurance",
+    "player.discipline",
+    "stage.index",
+    "stage.title",
+    "stage.goal",
+    "stage.frequency",
+]
+BOOTSTRAP_UI_FIELDS = [
+    "featureFlags.local_sync_ready",
+    "featureFlags.google_auth_ready",
+    "featureFlags.special_quest_enabled",
+    "featureFlags.database_ready",
+]
 
 
 def class_for_level(level: int) -> str:
@@ -68,6 +96,16 @@ def _serialize_inventory(items: list[InventoryItemView]) -> list[InventoryItemRe
     ]
 
 
+def _build_bootstrap_sync_contract() -> BootstrapSyncContractResponse:
+    return BootstrapSyncContractResponse(
+        contractVersion=BOOTSTRAP_CONTRACT_VERSION,
+        authoritativeSource="remote",
+        fallbackPolicy="local_cache_on_remote_failure",
+        durableFields=BOOTSTRAP_DURABLE_FIELDS,
+        uiFields=BOOTSTRAP_UI_FIELDS,
+    )
+
+
 def get_player_bootstrap(
     session: Session,
     repository: PlayerRepository | None = None,
@@ -84,6 +122,7 @@ def get_player_bootstrap(
             "special_quest_enabled": True,
             "database_ready": True,
         },
+        sync=_build_bootstrap_sync_contract(),
     )
 
 

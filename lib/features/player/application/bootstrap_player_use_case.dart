@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/player_repository_impl.dart';
+import '../domain/player_bootstrap_result.dart';
 import '../domain/player_repository.dart';
-import '../domain/player_snapshot.dart';
 
 final bootstrapPlayerUseCaseProvider = Provider<BootstrapPlayerUseCase>((ref) {
   return BootstrapPlayerUseCase(
@@ -17,11 +17,11 @@ class BootstrapPlayerUseCase {
 
   final PlayerRepository _repository;
 
-  Future<PlayerSnapshot> call() {
+  Future<PlayerBootstrapResult> call() {
     return _repository.bootstrap();
   }
 
-  Future<PlayerSnapshot> execute() {
+  Future<PlayerBootstrapResult> execute() {
     return call();
   }
 }

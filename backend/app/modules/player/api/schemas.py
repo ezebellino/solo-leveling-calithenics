@@ -28,10 +28,21 @@ class PlayerSummary(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class BootstrapSyncContractResponse(BaseModel):
+    contract_version: str = Field(alias="contractVersion")
+    authoritative_source: str = Field(alias="authoritativeSource")
+    fallback_policy: str = Field(alias="fallbackPolicy")
+    durable_fields: list[str] = Field(alias="durableFields")
+    ui_fields: list[str] = Field(alias="uiFields")
+
+    model_config = {"populate_by_name": True}
+
+
 class BootstrapResponse(BaseModel):
     player: PlayerSummary
     stage: StageSummary
     feature_flags: dict[str, bool] = Field(alias="featureFlags")
+    sync: BootstrapSyncContractResponse
 
     model_config = {"populate_by_name": True}
 

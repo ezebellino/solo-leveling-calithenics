@@ -20,7 +20,7 @@ import '../../../inventory/application/inventory_controller.dart';
 import '../../../inventory/presentation/widgets/chest_reward_overlay.dart';
 import '../../../player/application/bootstrap_player_controller.dart';
 import '../../../player/application/bootstrap_player_state.dart';
-import '../../../player/domain/player_snapshot.dart';
+import '../../../player/domain/player_bootstrap_result.dart';
 import '../../../player/presentation/pages/player_profile_tab.dart';
 import '../../../player/presentation/pages/player_stats_tab.dart';
 import '../../../shadows/domain/shadow_catalog.dart';
@@ -342,18 +342,21 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
     }
 
     if (!next.isLoading &&
-        next.snapshot != null &&
-        previous?.snapshot != next.snapshot &&
+        next.result != null &&
+        previous?.result != next.result &&
         _controller == null) {
+      final result = next.result!;
       _logger.info(
         event: 'bootstrap_loading_succeeded',
         source: 'app_shell.page',
         context: <String, Object?>{
-          'alias': next.snapshot!.alias,
-          'completedDays': next.snapshot!.completedDays,
+          'alias': result.snapshot.alias,
+          'completedDays': result.snapshot.completedDays,
+          'selectedSource': result.source.code,
+          'contractVersion': result.contractVersion,
         },
       );
-      unawaited(_initializeHomeController(next.snapshot!));
+      unawaited(_initializeHomeController(result));
     }
 
     if (!next.isLoading &&
@@ -384,7 +387,7 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
     ref.read(bootstrapPlayerControllerProvider.notifier).load();
   }
 
-  Future<void> _initializeHomeController(PlayerSnapshot snapshot) async {
+  Future<void> _initializeHomeController(PlayerBootstrapResult result) async {
     final controller = HomeController(
       storage: _storage,
       system: _system,
@@ -397,7 +400,7 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
     });
 
     try {
-      await controller.load(bootstrapSnapshot: snapshot);
+      await controller.load(bootstrapSnapshot: result.snapshot);
       if (!mounted) {
         return;
       }
@@ -408,6 +411,8 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
         source: 'app_shell.page',
         context: <String, Object?>{
           'error': error.toString(),
+          'selectedSource': result.source.code,
+          'contractVersion': result.contractVersion,
         },
       );
       controller.dispose();
