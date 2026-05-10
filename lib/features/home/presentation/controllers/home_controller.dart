@@ -146,7 +146,28 @@ class HomeController extends ChangeNotifier {
     if (state == null) {
       return;
     }
-    await _applyUpdate(_system.decideSpecialQuest(state, accept));
+    try {
+      await _applyUpdate(_system.decideSpecialQuest(state, accept));
+      _logger?.info(
+        event: 'special_quest_decision_succeeded',
+        source: 'home.controller',
+        context: <String, Object?>{
+          'accept': accept,
+          'status': _playerState?.weeklySpecialStatus,
+        },
+      );
+    } catch (error, stackTrace) {
+      _logger?.error(
+        event: 'special_quest_decision_failed',
+        source: 'home.controller',
+        context: <String, Object?>{
+          'accept': accept,
+          'error': error.toString(),
+          'stackTrace': stackTrace.toString(),
+        },
+      );
+      rethrow;
+    }
   }
 
   Future<void> useXpBoost() async {
@@ -276,7 +297,20 @@ class HomeController extends ChangeNotifier {
   Future<void> _persist(PlayerState state) async {
     _playerState = state;
     notifyListeners();
-    await _storage.save(state);
+    try {
+      await _storage.save(state);
+    } catch (error, stackTrace) {
+      _logger?.error(
+        event: 'player_state_persist_failed',
+        source: 'home.controller',
+        context: <String, Object?>{
+          'error': error.toString(),
+          'stackTrace': stackTrace.toString(),
+          'weeklySpecialStatus': state.weeklySpecialStatus,
+        },
+      );
+      rethrow;
+    }
   }
 
   Future<PlayerState> _mergeRemoteSnapshot(PlayerState fallback) async {
