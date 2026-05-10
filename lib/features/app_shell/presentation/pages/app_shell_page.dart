@@ -30,8 +30,6 @@ import '../../../system/application/system_overlay_controller.dart';
 import '../../../system/application/system_overlay_state.dart';
 import '../../../system/presentation/pages/system_tab.dart';
 import '../../../system/presentation/widgets/system_overlay_stack.dart';
-import '../../../quests/application/quest_action_handler.dart';
-import '../../../quests/application/quest_actions_controller.dart';
 import '../../../quests/presentation/pages/quests_page.dart';
 import '../../application/app_shell_controller.dart';
 import '../../application/app_shell_state.dart';
@@ -569,27 +567,19 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
   Widget _buildCurrentTab(int selectedIndex) {
     switch (selectedIndex) {
       case 1:
-        return ProviderScope(
-          overrides: [
-            questActionHandlerProvider.overrideWithValue(
-              QuestActionHandler(
-                advanceQuest: _controller!.advanceQuest,
-                advanceSpecialQuest: _controller!.advanceSpecialQuest,
-                decideSpecialQuest: _controller!.decideSpecialQuest,
-              ),
-            ),
-          ],
-          child: QuestsPage(
-            profile: _profileState,
-            quests: _quests,
-            specialQuest: _weeklySpecialQuest,
-            specialQuestStatus: _weeklySpecialStatus,
-            inventory: _inventory,
-            xpBoostArmed: _xpBoostArmed,
-            trainingPath: _trainingPath,
-            selectedStageIndex: _selectedStageIndex,
-            palette: _questPalette,
-          ),
+        return QuestsPage(
+          profile: _profileState,
+          quests: _quests,
+          specialQuest: _weeklySpecialQuest,
+          specialQuestStatus: _weeklySpecialStatus,
+          inventory: _inventory,
+          xpBoostArmed: _xpBoostArmed,
+          trainingPath: _trainingPath,
+          selectedStageIndex: _selectedStageIndex,
+          palette: _questPalette,
+          onAdvanceQuest: _controller!.advanceQuest,
+          onAdvanceSpecialQuest: _controller!.advanceSpecialQuest,
+          onDecideSpecialQuest: _controller!.decideSpecialQuest,
         );
       case 2:
         return PlayerStatsTab(

@@ -97,6 +97,10 @@ class ShadowsGalleryPanel extends StatelessWidget {
                             SnackBar(
                               content: const Text(
                                 'Podras visualizar esta sombra cuando la desbloquees.',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               behavior: SnackBarBehavior.floating,
                               backgroundColor: const Color(0xFF091018),

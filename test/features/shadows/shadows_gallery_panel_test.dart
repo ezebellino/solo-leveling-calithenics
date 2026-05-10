@@ -4,6 +4,7 @@ import 'package:solo_leveling_calisthenics/features/home/presentation/widgets/se
 import 'package:solo_leveling_calisthenics/features/shadows/domain/shadow_entity.dart';
 import 'package:solo_leveling_calisthenics/features/shadows/presentation/widgets/shadow_compact_card.dart';
 import 'package:solo_leveling_calisthenics/features/shadows/presentation/widgets/shadow_fullscreen_card.dart';
+import 'package:solo_leveling_calisthenics/features/shadows/presentation/widgets/shadows_gallery_panel.dart';
 
 void main() {
   const palette = SectionPalette(
@@ -96,5 +97,30 @@ void main() {
     expect(find.text('Caballero Sombra'), findsOneWidget);
     expect(find.textContaining('Su espada solo responde a jugadores'), findsOneWidget);
     expect(find.textContaining('Un duelista disciplinado'), findsOneWidget);
+  });
+
+  testWidgets('locked shadows show a readable unlock message when tapped', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          backgroundColor: Color(0xFF020611),
+          body: ShadowsGalleryPanel(
+            unlockedShadowIds: <String>[],
+            lastUnlockedShadowId: '',
+            palette: palette,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Igris'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Podras visualizar esta sombra cuando la desbloquees.'),
+      findsOneWidget,
+    );
   });
 }

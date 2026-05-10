@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../home/domain/daily_quest.dart';
 import '../../../home/domain/hunter_profile.dart';
@@ -11,11 +10,9 @@ import '../../../home/presentation/widgets/system_badge.dart';
 import '../../../home/presentation/widgets/training_widgets.dart';
 import '../../../inventory/presentation/widgets/inventory_panel.dart';
 import '../../../system/presentation/widgets/system_notification_panel.dart';
-import '../../application/quest_actions_controller.dart';
-import '../../application/quest_actions_state.dart';
 import '../widgets/quest_card.dart';
 
-class QuestsPage extends ConsumerWidget {
+class QuestsPage extends StatefulWidget {
   const QuestsPage({
     required this.profile,
     required this.quests,
@@ -26,6 +23,9 @@ class QuestsPage extends ConsumerWidget {
     required this.trainingPath,
     required this.selectedStageIndex,
     required this.palette,
+    required this.onAdvanceQuest,
+    required this.onAdvanceSpecialQuest,
+    required this.onDecideSpecialQuest,
     super.key,
   });
 
@@ -38,63 +38,136 @@ class QuestsPage extends ConsumerWidget {
   final TrainingPath trainingPath;
   final int selectedStageIndex;
   final SectionPalette palette;
+  final Future<void> Function(DailyQuest quest) onAdvanceQuest;
+  final Future<void> Function(DailyQuest quest) onAdvanceSpecialQuest;
+  final Future<void> Function(bool accept) onDecideSpecialQuest;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  State<QuestsPage> createState() => _QuestsPageState();
+}
+
+class _QuestsPageState extends State<QuestsPage> {
+  var _dailyNotificationDismissed = false;
+  String? _specialQuestStatusOverride;
+  String? _specialQuestFeedback;
+  var _isSubmitting = false;
+  String? _activeActionKey;
+
+  @override
+  void didUpdateWidget(covariant QuestsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldPrimaryQuest = oldWidget.quests.isEmpty ? null : oldWidget.quests.first;
+    final newPrimaryQuest = widget.quests.isEmpty ? null : widget.quests.first;
+    if (newPrimaryQuest != null &&
+        (oldPrimaryQuest == null ||
+            newPrimaryQuest.id != oldPrimaryQuest.id ||
+            newPrimaryQuest.progress < oldPrimaryQuest.progress)) {
+      _dailyNotificationDismissed = false;
+    }
+    if (widget.specialQuestStatus != oldWidget.specialQuestStatus) {
+      _specialQuestStatusOverride = null;
+      _specialQuestFeedback = null;
+      _isSubmitting = false;
+      _activeActionKey = null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final actionState = ref.watch(questActionsControllerProvider);
-    final actions = ref.read(questActionsControllerProvider.notifier);
+    final effectiveSpecialQuestStatus =
+        _specialQuestStatusOverride ?? widget.specialQuestStatus;
 
     return ScreenFrame(
-      primary: palette.primary,
-      secondary: palette.secondary,
-      highlight: palette.highlight,
+      primary: widget.palette.primary,
+      secondary: widget.palette.secondary,
+      highlight: widget.palette.highlight,
       children: [
-        SystemBadge(label: 'Notificacion', glowColor: palette.primary),
-        const SizedBox(height: 18),
-        SystemNotificationPanel(
-          title: 'Notificacion',
-          lines: const [
-            '[ Ha llegado la mision diaria: Entrenamiento de fuerza. ]',
-            'Fallar reducira tu racha y tu impulso.',
-          ],
-          ctaLabel: '[ Comenzar mision ]',
-          emphasisColor: palette.secondary,
-          onAccept: () {},
-        ),
-        if (specialQuest != null) ...[
+        if (!_dailyNotificationDismissed) ...[
+          SystemBadge(
+            label: 'Notificacion',
+            glowColor: widget.palette.primary,
+          ),
+          const SizedBox(height: 18),
+          SystemNotificationPanel(
+            title: 'Notificacion',
+            lines: const [
+              '[ Ha llegado la mision diaria: Entrenamiento de fuerza. ]',
+              'Fallar reducira tu racha y tu impulso.',
+            ],
+            ctaLabel: '[ Comenzar mision ]',
+            emphasisColor: widget.palette.secondary,
+            onAccept: () {
+              setState(() {
+                _dailyNotificationDismissed = true;
+              });
+            },
+          ),
+        ],
+        if (widget.specialQuest != null) ...[
           const SizedBox(height: 18),
           Text(
             'QUEST ESPECIAL SEMANAL',
             style: theme.textTheme.titleMedium?.copyWith(
               letterSpacing: 2.4,
-              color: palette.secondary,
+              color: widget.palette.secondary,
             ),
           ),
           const SizedBox(height: 12),
-          if (specialQuestStatus == 'pending')
+          if (effectiveSpecialQuestStatus == 'pending')
             _PendingSpecialQuestPanel(
-              specialQuest: specialQuest!,
-              palette: palette,
-              state: actionState,
-              onDecision: actions.decideSpecialQuest,
+              specialQuest: widget.specialQuest!,
+              palette: widget.palette,
+              isSubmitting: _isSubmitting,
+              onDecision: (accept) async {
+                setState(() {
+                  _isSubmitting = true;
+                  _activeActionKey = accept ? 'special:accept' : 'special:reject';
+                  _specialQuestStatusOverride = accept ? 'accepted' : 'rejected';
+                  _specialQuestFeedback = null;
+                });
+                try {
+                  await widget.onDecideSpecialQuest(accept);
+                  if (!mounted) {
+                    return;
+                  }
+                  setState(() {
+                    _isSubmitting = false;
+                    _activeActionKey = null;
+                  });
+                } catch (_) {
+                  if (!mounted) {
+                    return;
+                  }
+                  setState(() {
+                    _isSubmitting = false;
+                    _activeActionKey = null;
+                    _specialQuestStatusOverride = null;
+                    _specialQuestFeedback =
+                        'El Sistema no pudo registrar tu decision. Intentalo nuevamente.';
+                  });
+                }
+              },
             )
-          else if (specialQuestStatus == 'accepted' ||
-              specialQuestStatus == 'completed')
+          else if (effectiveSpecialQuestStatus == 'accepted' ||
+              effectiveSpecialQuestStatus == 'completed')
             QuestCard(
-              quest: specialQuest!,
-              primary: palette.primary,
-              secondary: palette.secondary,
-              highlight: palette.highlight,
+              quest: widget.specialQuest!,
+              primary: widget.palette.primary,
+              secondary: widget.palette.secondary,
+              highlight: widget.palette.highlight,
               isSpecial: true,
               isSubmitting:
-                  actionState.isSubmitting &&
-                  actionState.activeActionKey == 'special:${specialQuest!.id}',
-              onAdvance: () => actions.advanceSpecialQuest(specialQuest!),
+                  _isSubmitting &&
+                  _activeActionKey == 'special:${widget.specialQuest!.id}',
+              onAdvance: () => _runAction(
+                actionKey: 'special:${widget.specialQuest!.id}',
+                operation: () => widget.onAdvanceSpecialQuest(widget.specialQuest!),
+              ),
             )
           else
             HolographicPanel(
-              glowColor: palette.primary,
+              glowColor: widget.palette.primary,
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
               decorate: false,
               showCorners: false,
@@ -107,30 +180,49 @@ class QuestsPage extends ConsumerWidget {
               ),
             ),
         ],
+        if (_specialQuestFeedback != null) ...[
+          const SizedBox(height: 12),
+          HolographicPanel(
+            glowColor: widget.palette.primary,
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+            decorate: false,
+            showCorners: false,
+            child: Text(
+              _specialQuestFeedback!,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white70,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 18),
         Text(
-          'REGISTRO DE MISIONES',
-          style: theme.textTheme.titleMedium?.copyWith(
-            letterSpacing: 2.4,
-            color: palette.primary,
+            'REGISTRO DE MISIONES',
+            style: theme.textTheme.titleMedium?.copyWith(
+              letterSpacing: 2.4,
+              color: widget.palette.primary,
+            ),
           ),
-        ),
         const SizedBox(height: 12),
-        ...quests.map(
+        ...widget.quests.map(
           (quest) => QuestCard(
             quest: quest,
-            primary: palette.primary,
-            secondary: palette.secondary,
-            highlight: palette.highlight,
+            primary: widget.palette.primary,
+            secondary: widget.palette.secondary,
+            highlight: widget.palette.highlight,
             isSubmitting:
-                actionState.isSubmitting &&
-                actionState.activeActionKey == 'quest:${quest.id}',
-            onAdvance: () => actions.advanceQuest(quest),
+                _isSubmitting &&
+                _activeActionKey == 'quest:${quest.id}',
+            onAdvance: () => _runAction(
+              actionKey: 'quest:${quest.id}',
+              operation: () => widget.onAdvanceQuest(quest),
+            ),
           ),
         ),
         const SizedBox(height: 18),
         HolographicPanel(
-          glowColor: palette.primary,
+          glowColor: widget.palette.primary,
           padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
           decorate: false,
           showCorners: false,
@@ -140,16 +232,16 @@ class QuestsPage extends ConsumerWidget {
                 child: MiniMetric(
                   label: 'Botin XP',
                   value:
-                      '${quests.fold<int>(0, (sum, q) => sum + q.rewardXp)} XP',
-                  accent: palette.secondary,
+                      '${widget.quests.fold<int>(0, (sum, q) => sum + q.rewardXp)} XP',
+                  accent: widget.palette.secondary,
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: MiniMetric(
                   label: 'Racha actual',
-                  value: '${profile.streakDays} dias',
-                  accent: palette.primary,
+                  value: '${widget.profile.streakDays} dias',
+                  accent: widget.palette.primary,
                 ),
               ),
             ],
@@ -158,22 +250,22 @@ class QuestsPage extends ConsumerWidget {
         const SizedBox(height: 18),
         InventoryPanel(
           title: 'INVENTARIO DEL SISTEMA',
-          inventory: inventory,
-          xpBoostArmed: xpBoostArmed,
-          palette: palette,
+          inventory: widget.inventory,
+          xpBoostArmed: widget.xpBoostArmed,
+          palette: widget.palette,
           showRerollAction: true,
         ),
         const SizedBox(height: 18),
         Text(
-          'BLOQUE OPTIMO ACTUAL',
-          style: theme.textTheme.titleMedium?.copyWith(
-            letterSpacing: 2.4,
-            color: palette.primary,
+            'BLOQUE OPTIMO ACTUAL',
+            style: theme.textTheme.titleMedium?.copyWith(
+              letterSpacing: 2.4,
+              color: widget.palette.primary,
+            ),
           ),
-        ),
         const SizedBox(height: 12),
         HolographicPanel(
-          glowColor: palette.primary,
+          glowColor: widget.palette.primary,
           padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
           decorate: false,
           showCorners: false,
@@ -189,7 +281,9 @@ class QuestsPage extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                _stagePrescription(trainingPath.stages[selectedStageIndex]),
+                _stagePrescription(
+                  widget.trainingPath.stages[widget.selectedStageIndex],
+                ),
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: Colors.white70,
                   height: 1.45,
@@ -197,23 +291,23 @@ class QuestsPage extends ConsumerWidget {
               ),
               const SizedBox(height: 14),
               TrainingBullet(
-                accent: palette.secondary,
+                accent: widget.palette.secondary,
                 text:
                     'Dia A: dominada asistida, flexion inclinada, remo australiano, sentadilla y hollow hold.',
               ),
               TrainingBullet(
-                accent: palette.primary,
+                accent: widget.palette.primary,
                 text:
                     'Dia B: repetir patron con un poco menos de asistencia o mas rango de movimiento.',
               ),
               TrainingBullet(
-                accent: palette.secondary,
+                accent: widget.palette.secondary,
                 text:
                     'Dia C: consolidar tecnica, registrar reps y decidir si toca subir ejercicio o mantener bloque.',
               ),
               const SizedBox(height: 14),
               Text(
-                trainingPath.rules.first.detail,
+                widget.trainingPath.rules.first.detail,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: Colors.white60,
                   height: 1.4,
@@ -226,14 +320,14 @@ class QuestsPage extends ConsumerWidget {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: palette.secondary.withValues(alpha: 0.08),
+                  color: widget.palette.secondary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: palette.secondary.withValues(alpha: 0.22),
+                    color: widget.palette.secondary.withValues(alpha: 0.22),
                   ),
                 ),
                 child: Text(
-                  'Etapa activa: ${trainingPath.stages[selectedStageIndex].title}',
+                  'Etapa activa: ${widget.trainingPath.stages[widget.selectedStageIndex].title}',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -261,19 +355,43 @@ class QuestsPage extends ConsumerWidget {
         return 'La guia apunta a una base full body de 3 dias cuando el objetivo es progresar de forma sostenida sin quemar articulaciones ni saltarse adaptaciones.';
     }
   }
+
+  Future<void> _runAction({
+    required String actionKey,
+    required Future<void> Function() operation,
+  }) async {
+    if (_isSubmitting) {
+      return;
+    }
+    setState(() {
+      _isSubmitting = true;
+      _activeActionKey = actionKey;
+    });
+    try {
+      await operation();
+    } finally {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isSubmitting = false;
+        _activeActionKey = null;
+      });
+    }
+  }
 }
 
 class _PendingSpecialQuestPanel extends StatelessWidget {
   const _PendingSpecialQuestPanel({
     required this.specialQuest,
     required this.palette,
-    required this.state,
+    required this.isSubmitting,
     required this.onDecision,
   });
 
   final DailyQuest specialQuest;
   final SectionPalette palette;
-  final QuestActionsState state;
+  final bool isSubmitting;
   final Future<void> Function(bool accept) onDecision;
 
   @override
@@ -308,14 +426,14 @@ class _PendingSpecialQuestPanel extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: state.isSubmitting ? null : () => onDecision(false),
+                  onPressed: isSubmitting ? null : () => onDecision(false),
                   child: const Text('Rechazar'),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: FilledButton(
-                  onPressed: state.isSubmitting ? null : () => onDecision(true),
+                  onPressed: isSubmitting ? null : () => onDecision(true),
                   child: const Text('Aceptar'),
                 ),
               ),
