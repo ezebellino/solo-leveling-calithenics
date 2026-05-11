@@ -72,6 +72,7 @@ class HomeController extends ChangeNotifier {
         _handleNotice(notice);
       }
       await _storage.save(_playerState!);
+      await _refreshDurableReadModels();
 
       _logger?.info(
         event: 'bootstrap_hydration_succeeded',
@@ -139,7 +140,13 @@ class HomeController extends ChangeNotifier {
     if (state == null) {
       return;
     }
+    final previousState = state;
     await _applyUpdate(_system.advanceSpecialQuest(state, quest));
+    await _syncDurableFeaturesAfterLocalMutation(
+      previousState: previousState,
+      failureMessage:
+          'El Sistema no pudo sincronizar el progreso durable de la quest especial.',
+    );
     _logger?.info(
       event: 'special_quest_advanced_locally',
       source: 'home.controller',
@@ -184,7 +191,12 @@ class HomeController extends ChangeNotifier {
     if (state == null) {
       return;
     }
+    final previousState = state;
     await _applyUpdate(_system.useXpBoost(state));
+    await _syncDurableFeaturesAfterLocalMutation(
+      previousState: previousState,
+      failureMessage: 'El Sistema no pudo sincronizar el inventario remoto.',
+    );
   }
 
   Future<void> updateAvatarUrl(String avatarUrl) async {
@@ -234,11 +246,23 @@ class HomeController extends ChangeNotifier {
     if (state == null) {
       return;
     }
+    final previousState = state;
     await _applyUpdate(_system.useReroll(state));
+    await _syncDurableFeaturesAfterLocalMutation(
+      previousState: previousState,
+      failureMessage: 'El Sistema no pudo sincronizar el inventario remoto.',
+    );
   }
 
   Future<void> resetProgress() async {
+    final previousState = _playerState;
     await _applyUpdate(_system.resetProgress());
+    if (previousState != null) {
+      await _syncDurableFeaturesAfterLocalMutation(
+        previousState: previousState,
+        failureMessage: 'El Sistema no pudo sincronizar el reinicio del progreso durable.',
+      );
+    }
     _selectedIndex = 0;
     _previousIndex = 0;
     _pendingLevelUp = null;
@@ -338,10 +362,13 @@ class HomeController extends ChangeNotifier {
             ? remoteProfile.avatarUrl
             : localProfile.avatarUrl,
         avatarImageBase64: localProfile.avatarImageBase64,
+        shadowArmy: remoteProfile.shadowArmy,
       );
 
       return fallback.copyWith(
         profile: mergedProfile,
+        inventory: snapshot.inventory,
+        unlockedShadowIds: snapshot.unlockedShadowIds,
       );
     } catch (_) {
       return fallback;
@@ -383,6 +410,7 @@ class HomeController extends ChangeNotifier {
       if (state == null) {
         return;
       }
+      await _pushDurableFeatureState(state);
       final remoteState = await _mergeRemoteSnapshot(state);
       await _persist(remoteState);
       _logger?.info(
@@ -416,6 +444,125 @@ class HomeController extends ChangeNotifier {
     _rewardNoticeTimer?.cancel();
     _rewardNotice = null;
     notifyListeners();
+  }
+
+  Future<void> _refreshDurableReadModels() async {
+    final state = _playerState;
+    final apiClient = _apiClient;
+    if (state == null || apiClient == null) {
+      return;
+    }
+
+    _logger?.info(
+      event: 'durable_read_refresh_started',
+      source: 'home.controller',
+    );
+    try {
+      final merged = await _mergeRemoteSnapshot(state);
+      if (!_hasDurableFeatureChanges(state, merged)) {
+        return;
+      }
+      await _persist(merged);
+      _logger?.info(
+        event: 'durable_read_refresh_succeeded',
+        source: 'home.controller',
+        context: <String, Object?>{
+          'shadowArmy': merged.profile.shadowArmy,
+          'inventoryItems': merged.inventory.length,
+          'unlockedShadowCount': merged.unlockedShadowIds.length,
+        },
+      );
+    } catch (error) {
+      _logger?.warning(
+        event: 'durable_read_refresh_failed',
+        source: 'home.controller',
+        context: <String, Object?>{
+          'error': error.toString(),
+        },
+      );
+    }
+  }
+
+  Future<void> _syncDurableFeaturesAfterLocalMutation({
+    required PlayerState previousState,
+    required String failureMessage,
+  }) async {
+    final state = _playerState;
+    final apiClient = _apiClient;
+    if (state == null || apiClient == null || !_hasDurableFeatureChanges(previousState, state)) {
+      return;
+    }
+
+    try {
+      await _pushDurableFeatureState(state);
+      final merged = await _mergeRemoteSnapshot(state);
+      await _persist(merged);
+    } catch (error) {
+      _logger?.warning(
+        event: 'durable_feature_sync_failed',
+        source: 'home.controller',
+        context: <String, Object?>{
+          'error': error.toString(),
+          'rollbackApplied': true,
+        },
+      );
+      _clearTransientSyncState();
+      await _persist(previousState);
+      _showRewardNotice(failureMessage);
+    }
+  }
+
+  Future<void> _pushDurableFeatureState(PlayerState state) async {
+    final apiClient = _apiClient;
+    if (apiClient == null) {
+      return;
+    }
+
+    await apiClient.syncInventory(state.inventory);
+    await apiClient.syncShadowProgression(
+      shadowArmy: state.profile.shadowArmy,
+      unlockedShadowIds: state.unlockedShadowIds,
+    );
+  }
+
+  bool _hasDurableFeatureChanges(PlayerState previousState, PlayerState nextState) {
+    if (!_sameInventory(previousState.inventory, nextState.inventory)) {
+      return true;
+    }
+    if (previousState.profile.shadowArmy != nextState.profile.shadowArmy) {
+      return true;
+    }
+    return !_sameShadowIds(previousState.unlockedShadowIds, nextState.unlockedShadowIds);
+  }
+
+  bool _sameInventory(Map<String, int> left, Map<String, int> right) {
+    if (identical(left, right)) {
+      return true;
+    }
+    if (left.length != right.length) {
+      return false;
+    }
+    for (final entry in left.entries) {
+      if (right[entry.key] != entry.value) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _sameShadowIds(List<String> left, List<String> right) {
+    if (identical(left, right)) {
+      return true;
+    }
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   void _showRewardNotice(String message) {

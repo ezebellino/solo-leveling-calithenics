@@ -102,6 +102,11 @@ void main() {
   testWidgets('locked shadows show a readable unlock message when tapped', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
@@ -115,8 +120,8 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Igris'));
-    await tester.pumpAndSettle();
+    await tester.tap(find.byType(ShadowCompactCard).first);
+    await tester.pump(const Duration(milliseconds: 250));
 
     expect(
       find.text('Podras visualizar esta sombra cuando la desbloquees.'),

@@ -10,6 +10,16 @@ def test_shadow_progression_endpoint_returns_default_empty_unlocks(client) -> No
     assert response.json() == {
         "shadowArmy": 0,
         "unlockedShadows": [],
+        "sync": {
+            "contractVersion": "2026-05-11.shadows.v1",
+            "authoritativeSource": "remote",
+            "fallbackPolicy": "local_cache_on_remote_failure",
+            "durableFields": [
+                "shadowArmy",
+                "unlockedShadows[].code",
+                "unlockedShadows[].obtainedAt",
+            ],
+        },
     }
 
 
@@ -56,3 +66,18 @@ def test_shadow_unlock_persistence_is_owned_by_shadows_module(client) -> None:
 
     assert ShadowUnlock.__module__ == "app.modules.shadows.infrastructure.models"
     assert hasattr(legacy_models.User, "shadow_unlocks")
+
+
+def test_shadow_progression_sync_endpoint_reconciles_unlocks(client) -> None:
+    response = client.patch(
+        "/api/v1/shadows/progression",
+        json={
+            "shadowArmy": 2,
+            "unlockedShadowIds": ["igris", "tank"],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["shadowArmy"] == 2
+    assert [item["code"] for item in payload["unlockedShadows"]] == ["igris", "tank"]

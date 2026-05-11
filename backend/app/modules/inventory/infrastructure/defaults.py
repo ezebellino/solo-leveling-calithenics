@@ -6,6 +6,12 @@ DEFAULT_INVENTORY_CODES = (
     "quest_reroll",
 )
 
+DEFAULT_INVENTORY_NAMES = {
+    "streak_freeze": "Freeze de racha",
+    "xp_boost": "Boost de XP",
+    "quest_reroll": "Re-roll de mision",
+}
+
 
 def build_default_inventory_items() -> list[InventoryItem]:
     return [

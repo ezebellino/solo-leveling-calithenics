@@ -3,9 +3,13 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../../core/errors/app_exception.dart';
+import '../../../core/logging/app_logger.dart';
+import '../../inventory/data/inventory_repository.dart';
+import '../../shadows/data/shadow_progression_repository.dart';
 import '../../player/data/player_api_client.dart';
 import '../domain/daily_quest.dart';
 import '../domain/hunter_profile.dart';
+import 'local_player_state_repository.dart';
 
 class RemoteHomeSnapshot {
   const RemoteHomeSnapshot({
@@ -13,6 +17,7 @@ class RemoteHomeSnapshot {
     required this.selectedStageIndex,
     required this.quests,
     required this.inventory,
+    required this.unlockedShadowIds,
     required this.completedDays,
   });
 
@@ -20,6 +25,7 @@ class RemoteHomeSnapshot {
   final int selectedStageIndex;
   final List<DailyQuest> quests;
   final Map<String, int> inventory;
+  final List<String> unlockedShadowIds;
   final int completedDays;
 }
 
@@ -28,13 +34,27 @@ class HomeApiClient {
     required this.baseUrl,
     http.Client? httpClient,
     PlayerApiClient? playerApiClient,
+    LocalPlayerStateRepository? storage,
+    AppLogger? logger,
+    InventoryRepository? inventoryRepository,
+    ShadowProgressionRepository? shadowProgressionRepository,
   })  : _httpClient = httpClient ?? http.Client(),
-        _injectedPlayerApiClient = playerApiClient;
+        _injectedPlayerApiClient = playerApiClient,
+        _storage = storage,
+        _logger = logger,
+        _injectedInventoryRepository = inventoryRepository,
+        _injectedShadowProgressionRepository = shadowProgressionRepository;
 
   final String baseUrl;
   final http.Client _httpClient;
   final PlayerApiClient? _injectedPlayerApiClient;
+  final LocalPlayerStateRepository? _storage;
+  final AppLogger? _logger;
+  final InventoryRepository? _injectedInventoryRepository;
+  final ShadowProgressionRepository? _injectedShadowProgressionRepository;
   PlayerApiClient? _ownedPlayerApiClient;
+  InventoryRepository? _ownedInventoryRepository;
+  ShadowProgressionRepository? _ownedShadowProgressionRepository;
 
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
@@ -47,9 +67,49 @@ class HomeApiClient {
         ));
   }
 
+  InventoryRepository get _inventoryRepository {
+    if (_injectedInventoryRepository != null) {
+      return _injectedInventoryRepository;
+    }
+    final storage = _storage;
+    final logger = _logger;
+    if (storage == null || logger == null) {
+      throw StateError(
+        'InventoryRepository requiere storage y logger cuando no se inyecta manualmente.',
+      );
+    }
+    return _ownedInventoryRepository ??= InventoryRepository.create(
+      baseUrl: baseUrl,
+      logger: logger,
+      storage: storage,
+      httpClient: _httpClient,
+    );
+  }
+
+  ShadowProgressionRepository get _shadowProgressionRepository {
+    if (_injectedShadowProgressionRepository != null) {
+      return _injectedShadowProgressionRepository;
+    }
+    final storage = _storage;
+    final logger = _logger;
+    if (storage == null || logger == null) {
+      throw StateError(
+        'ShadowProgressionRepository requiere storage y logger cuando no se inyecta manualmente.',
+      );
+    }
+    return _ownedShadowProgressionRepository ??= ShadowProgressionRepository.create(
+      baseUrl: baseUrl,
+      logger: logger,
+      storage: storage,
+      httpClient: _httpClient,
+    );
+  }
+
   Future<RemoteHomeSnapshot> fetchSnapshot() async {
     final playerJson = await _playerApiClient.fetchPlayerJson();
     final questsResponse = await _httpClient.get(_uri('/api/v1/quests/today'));
+    final inventoryResult = await _inventoryRepository.refresh();
+    final shadowResult = await _shadowProgressionRepository.refresh();
 
     if (questsResponse.statusCode != 200) {
       throw Exception('No se pudieron obtener las quests remotas.');
@@ -58,17 +118,16 @@ class HomeApiClient {
     final questsJson = jsonDecode(questsResponse.body) as Map<String, dynamic>;
 
     return RemoteHomeSnapshot(
-      profile: _profileFromPlayer(playerJson['player'] as Map<String, dynamic>),
+      profile: _profileFromPlayer(
+        playerJson['player'] as Map<String, dynamic>,
+        shadowArmy: shadowResult.shadowArmy,
+      ),
       selectedStageIndex: ((playerJson['stage'] as Map<String, dynamic>)['index'] as int) - 1,
       quests: ((questsJson['quests'] as List<dynamic>))
           .map((quest) => _questFromApi(quest as Map<String, dynamic>))
           .toList(),
-      inventory: ((playerJson['inventory'] as List<dynamic>))
-          .cast<Map<String, dynamic>>()
-          .fold<Map<String, int>>({}, (inventory, item) {
-            inventory[_inventoryCodeToLocal(item['code'] as String)] = item['quantity'] as int;
-            return inventory;
-          }),
+      inventory: inventoryResult.items,
+      unlockedShadowIds: shadowResult.unlockedShadowIds,
       completedDays: playerJson['completedDays'] as int? ?? 0,
     );
   }
@@ -102,7 +161,24 @@ class HomeApiClient {
     );
   }
 
-  HunterProfile _profileFromPlayer(Map<String, dynamic> json) {
+  Future<void> syncInventory(Map<String, int> inventory) async {
+    await _inventoryRepository.sync(inventory);
+  }
+
+  Future<void> syncShadowProgression({
+    required int shadowArmy,
+    required List<String> unlockedShadowIds,
+  }) async {
+    await _shadowProgressionRepository.sync(
+      shadowArmy: shadowArmy,
+      unlockedShadowIds: unlockedShadowIds,
+    );
+  }
+
+  HunterProfile _profileFromPlayer(
+    Map<String, dynamic> json, {
+    int? shadowArmy,
+  }) {
     return HunterProfile(
       alias: json['alias'] as String,
       avatarUrl: json['avatarUrl'] as String? ?? '',
@@ -113,7 +189,7 @@ class HomeApiClient {
       currentXp: json['currentXp'] as int,
       nextLevelXp: json['nextLevelXp'] as int,
       streakDays: json['streakDays'] as int,
-      shadowArmy: json['shadowArmy'] as int,
+      shadowArmy: shadowArmy ?? json['shadowArmy'] as int,
       strength: json['strength'] as int,
       agility: json['agility'] as int,
       endurance: json['endurance'] as int,
@@ -131,21 +207,9 @@ class HomeApiClient {
       target: json['target'] as int,
     );
   }
-
-  String _inventoryCodeToLocal(String code) {
-    switch (code) {
-      case 'streak_freeze':
-        return 'freeze';
-      case 'quest_reroll':
-        return 'reroll';
-      default:
-        return code;
-    }
-  }
-
   void _throwIfRequestFailed(
     http.Response response, {
-    required String fallbackCode,
+      required String fallbackCode,
     required String fallbackMessage,
   }) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -175,6 +239,8 @@ class HomeApiClient {
 
   void dispose() {
     _ownedPlayerApiClient?.dispose();
+    _ownedInventoryRepository = null;
+    _ownedShadowProgressionRepository = null;
     _httpClient.close();
   }
 }

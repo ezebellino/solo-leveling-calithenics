@@ -12,11 +12,19 @@ def test_inventory_endpoint_returns_default_inventory(client) -> None:
     response = client.get("/api/v1/inventory")
 
     assert response.status_code == 200
-    assert response.json() == [
-        {"code": "streak_freeze", "name": "Freeze de racha", "quantity": 0},
-        {"code": "xp_boost", "name": "Boost de XP", "quantity": 0},
-        {"code": "quest_reroll", "name": "Re-roll de mision", "quantity": 0},
-    ]
+    assert response.json() == {
+        "items": [
+            {"code": "streak_freeze", "name": "Freeze de racha", "quantity": 0},
+            {"code": "xp_boost", "name": "Boost de XP", "quantity": 0},
+            {"code": "quest_reroll", "name": "Re-roll de mision", "quantity": 0},
+        ],
+        "sync": {
+            "contractVersion": "2026-05-11.inventory.v1",
+            "authoritativeSource": "remote",
+            "fallbackPolicy": "local_cache_on_remote_failure",
+            "durableFields": ["items[].code", "items[].quantity"],
+        },
+    }
 
 
 def test_inventory_application_service_lists_default_user_inventory(client) -> None:
@@ -70,3 +78,23 @@ def test_importing_app_models_registers_inventory_relationships(tmp_path, monkey
             "xp_boost",
             "quest_reroll",
         ]
+
+
+def test_inventory_sync_endpoint_reconciles_quantities(client) -> None:
+    response = client.patch(
+        "/api/v1/inventory/sync",
+        json={
+            "items": [
+                {"code": "streak_freeze", "quantity": 2},
+                {"code": "xp_boost", "quantity": 1},
+                {"code": "quest_reroll", "quantity": 0},
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["items"] == [
+        {"code": "streak_freeze", "name": "Freeze de racha", "quantity": 2},
+        {"code": "xp_boost", "name": "Boost de XP", "quantity": 1},
+        {"code": "quest_reroll", "name": "Re-roll de mision", "quantity": 0},
+    ]

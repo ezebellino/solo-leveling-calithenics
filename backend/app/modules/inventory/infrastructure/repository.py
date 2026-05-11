@@ -1,7 +1,10 @@
 from sqlalchemy.orm import Session
 
 from app.modules.player.infrastructure.models import User
-from app.modules.inventory.infrastructure.defaults import DEFAULT_INVENTORY_CODES
+from app.modules.inventory.infrastructure.defaults import (
+    DEFAULT_INVENTORY_CODES,
+    DEFAULT_INVENTORY_NAMES,
+)
 from app.modules.inventory.infrastructure.models import InventoryItem
 
 
@@ -21,3 +24,33 @@ class InventoryRepository:
         )
         order_map = {code: index for index, code in enumerate(DEFAULT_INVENTORY_CODES)}
         return sorted(items, key=lambda item: order_map.get(item.code, len(order_map)))
+
+    def reconcile_default_user_inventory(
+        self,
+        session: Session,
+        *,
+        quantities: dict[str, int],
+    ) -> list[InventoryItem]:
+        user = self.get_default_user(session)
+        items = (
+            session.query(InventoryItem)
+            .filter(InventoryItem.user_id == user.id)
+            .all()
+        )
+        items_by_code = {item.code: item for item in items}
+
+        for code in DEFAULT_INVENTORY_CODES:
+            item = items_by_code.get(code)
+            if item is None:
+                item = InventoryItem(
+                    user_id=user.id,
+                    code=code,
+                    name=DEFAULT_INVENTORY_NAMES[code],
+                    quantity=0,
+                )
+                session.add(item)
+                items_by_code[code] = item
+            item.quantity = max(0, quantities.get(code, 0))
+
+        session.commit()
+        return self.list_default_user_inventory(session)

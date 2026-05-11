@@ -400,7 +400,11 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
     final controller = HomeController(
       storage: _storage,
       system: _system,
-      apiClient: HomeApiClient(baseUrl: ref.read(apiBaseUrlProvider)),
+      apiClient: HomeApiClient(
+        baseUrl: ref.read(apiBaseUrlProvider),
+        storage: _storage,
+        logger: _logger,
+      ),
       logger: _logger,
     );
 

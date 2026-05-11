@@ -390,7 +390,7 @@ void main() {
       expect(controller.playerState!.inventory['freeze'], 2);
     });
 
-    test('keeps local progression authoritative and clears stale unlock replay', () async {
+    test('keeps local quests and stage authoritative while refreshing durable inventory and shadows', () async {
       const baseProfile = HunterProfile(
         alias: 'Local Hunter',
         avatarUrl: '',
@@ -439,7 +439,7 @@ void main() {
           currentXp: 9999,
           nextLevelXp: 10000,
           streakDays: 99,
-          shadowArmy: 99,
+          shadowArmy: 2,
           strength: 99,
           agility: 99,
           endurance: 99,
@@ -456,7 +456,8 @@ void main() {
             target: 1,
           ),
         ],
-        inventory: const <String, int>{'freeze': 5},
+        inventory: const <String, int>{'freeze': 5, 'xp_boost': 7, 'reroll': 9},
+        unlockedShadowIds: const <String>['igris', 'tank'],
         completedDays: 0,
       );
       final apiClient = _FakeHomeApiClient(snapshot: remoteSnapshot);
@@ -471,7 +472,11 @@ void main() {
       expect(controller.playerState!.selectedStageIndex, 2);
       expect(controller.playerState!.quests.first.id, localState.quests.first.id);
       expect(controller.playerState!.quests.first.progress, 3);
-      expect(controller.playerState!.inventory, localState.inventory);
+      expect(controller.playerState!.inventory['freeze'], 5);
+      expect(controller.playerState!.inventory['xp_boost'], 7);
+      expect(controller.playerState!.inventory['reroll'], 9);
+      expect(controller.playerState!.profile.shadowArmy, 2);
+      expect(controller.playerState!.unlockedShadowIds, ['igris', 'tank']);
 
       await controller.advanceQuest(controller.playerState!.quests.first);
 
@@ -480,13 +485,14 @@ void main() {
       expect(controller.playerState!.profile.level, isNot(99));
       expect(controller.playerState!.selectedStageIndex, 2);
       expect(controller.playerState!.quests.first.id, localState.quests.first.id);
-      expect(controller.playerState!.inventory['freeze'], 2);
-      expect(controller.playerState!.inventory['xp_boost'], 2);
-      expect(controller.playerState!.inventory['reroll'], 3);
+      expect(controller.playerState!.inventory['freeze'], 6);
+      expect(controller.playerState!.inventory['xp_boost'], 7);
+      expect(controller.playerState!.inventory['reroll'], 9);
       expect(controller.playerState!.completedDays, 7);
       expect(controller.playerState!.totalCompletedQuests, 7);
       expect(controller.playerState!.unlockedShadowIds, contains('igris'));
-      expect(controller.pendingUnlockedShadowId, 'igris');
+      expect(controller.playerState!.unlockedShadowIds, contains('tank'));
+      expect(controller.pendingUnlockedShadowId, isNull);
       expect(controller.pendingChestRewards, ['Freeze de racha x1']);
 
       await controller.clearUnlockedShadowNotice();
@@ -541,6 +547,7 @@ void main() {
             selectedStageIndex: localState.selectedStageIndex,
             quests: localState.quests,
             inventory: localState.inventory,
+            unlockedShadowIds: localState.unlockedShadowIds,
             completedDays: localState.completedDays,
           ),
         ),
@@ -622,15 +629,44 @@ class _MemoryPlayerStateRepository extends LocalPlayerStateRepository {
 }
 
 class _FakeHomeApiClient extends HomeApiClient {
-  _FakeHomeApiClient({required this.snapshot}) : super(baseUrl: 'https://example.com');
+  _FakeHomeApiClient({required RemoteHomeSnapshot snapshot})
+    : _snapshot = snapshot,
+      super(baseUrl: 'https://example.com');
 
-  final RemoteHomeSnapshot snapshot;
+  RemoteHomeSnapshot _snapshot;
 
   @override
-  Future<RemoteHomeSnapshot> fetchSnapshot() async => snapshot;
+  Future<RemoteHomeSnapshot> fetchSnapshot() async => _snapshot;
 
   @override
   Future<void> advanceQuest(String questId, {int amount = 1}) async {}
+
+  @override
+  Future<void> syncInventory(Map<String, int> inventory) async {
+    _snapshot = RemoteHomeSnapshot(
+      profile: _snapshot.profile,
+      selectedStageIndex: _snapshot.selectedStageIndex,
+      quests: _snapshot.quests,
+      inventory: Map<String, int>.from(inventory),
+      unlockedShadowIds: _snapshot.unlockedShadowIds,
+      completedDays: _snapshot.completedDays,
+    );
+  }
+
+  @override
+  Future<void> syncShadowProgression({
+    required int shadowArmy,
+    required List<String> unlockedShadowIds,
+  }) async {
+    _snapshot = RemoteHomeSnapshot(
+      profile: _snapshot.profile.copyWith(shadowArmy: shadowArmy),
+      selectedStageIndex: _snapshot.selectedStageIndex,
+      quests: _snapshot.quests,
+      inventory: _snapshot.inventory,
+      unlockedShadowIds: List<String>.from(unlockedShadowIds),
+      completedDays: _snapshot.completedDays,
+    );
+  }
 
   @override
   void dispose() {}
