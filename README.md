@@ -323,3 +323,79 @@ Despues de `Phase 3`, el paso mas sano es reforzar integracion y observabilidad:
 - endurecer sync frontend/backend;
 - definir auth y sharing sobre una base ya modular;
 - mejorar observabilidad productiva sin volver a mezclar responsabilidades.
+
+## Phase 4 Baseline
+
+`Phase 4` cierra la primera version defendible de sync y observabilidad del producto.
+
+### Reglas de autoridad
+
+- `backend` es la fuente de verdad durable para:
+  - `player bootstrap`
+  - `inventory`
+  - `shadow progression`
+  - `quest mutations` confirmadas
+- `frontend` trabaja como `online-first with resilient local cache`:
+  - hidrata desde cache/local state;
+  - intenta leer o reconciliar con backend;
+  - conserva una experiencia util cuando el remoto falla.
+
+### Flujo integrado
+
+El flujo normal ya quedo explicitado asi:
+
+1. `bootstrap`
+   - Flutter carga cache/local state;
+   - consulta `player bootstrap`;
+   - selecciona fuente (`remote`, `local_cache`, `legacy_local_state`);
+   - persiste el snapshot elegido.
+2. `action`
+   - la UI aplica una actualizacion local controlada;
+   - el feature correspondiente dispara sync/mutacion al backend.
+3. `reconcile`
+   - si el backend confirma, se refrescan las read models durables;
+   - si falla, se hace rollback o fallback segun el feature.
+4. `persist`
+   - el estado reconciliado vuelve a cache local.
+
+### Fallback policy
+
+- `player bootstrap`
+  - intenta remoto y cae a cache/local state si hace falta
+- `inventory`
+  - `remote -> local cache`
+- `shadows`
+  - `remote -> local cache`
+- `quests`
+  - mutacion optimista con rollback si la verdad backend rechaza la accion
+- `special quest decision`
+  - sigue siendo `local_only` por ahora; no tiene surface backend propia todavia
+
+### Observabilidad
+
+La baseline ya deja:
+
+- logging estructurado en Flutter para eventos sync-critical;
+- `AppException` con `code`, `message`, `isRetryable` y `logContext`;
+- backend con `request_id` visible;
+- `X-Request-Id` devuelto al cliente;
+- errores de API con payload seguro y trazable;
+- logs alineados en `player`, `quests`, `inventory` y `shadows`.
+
+### Verificacion de Phase 4
+
+Se verifico al cerrar la fase:
+
+- `flutter test` focalizado sobre `player`, `quests`, `inventory`, `shadows`, `core/errors` y `core/logging`
+- `flutter analyze` sobre features/core tocados
+- `py -3 -m pytest backend\tests -q`
+- `py -3 -m compileall backend\app backend\tests`
+
+### Lo que sigue despues
+
+Con esta base ya tiene sentido avanzar con:
+
+- `auth`
+- `sharing`
+- observabilidad productiva mas profunda
+- sincronizacion entre dispositivos

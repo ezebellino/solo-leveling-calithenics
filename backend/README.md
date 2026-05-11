@@ -186,3 +186,68 @@ Resultado esperado en la baseline actual:
 ### Nota sobre archivos temporales
 
 En worktrees de refactor pueden aparecer `.db` de pruebas locales. No forman parte del estado versionado del backend y deben quedar fuera de los commits.
+
+## Phase 4 Sync + Observability Baseline
+
+`Phase 4` endurece la integracion entre Flutter y FastAPI y deja una baseline de observabilidad mas cercana a produccion.
+
+### Autoridad de datos
+
+El backend pasa a ser la fuente de verdad durable para:
+
+- `player bootstrap`
+- `inventory`
+- `shadow progression`
+- mutaciones de `quests` aceptadas
+
+El frontend mantiene cache local y aplica fallback controlado, pero ya no inventa verdad durable silenciosamente.
+
+### Contratos y surface relevantes
+
+- `GET /api/v1/bootstrap`
+  - incluye metadata de sync y fuente seleccionada
+- `GET /api/v1/player`
+- `PATCH /api/v1/player/progress`
+- `GET /api/v1/quests/today`
+- `POST /api/v1/quests/{id}/advance`
+- `POST /api/v1/quests/{id}/complete`
+- `GET /api/v1/inventory`
+- `PATCH /api/v1/inventory/sync`
+- `GET /api/v1/shadows/progression`
+- `PATCH /api/v1/shadows/progression`
+
+### Politica de errores y trazabilidad
+
+- respuestas `AppError` incluyen:
+  - `code`
+  - `message`
+  - `requestId`
+- el backend devuelve `X-Request-Id`
+- el middleware deja trazas de:
+  - request started
+  - request completed
+  - request failed
+- los servicios de `inventory` y `shadows` ya emiten logs estructurados de lectura/sync
+
+### Resultado operativo
+
+La historia integrada queda asi:
+
+1. Flutter hace bootstrap y selecciona fuente.
+2. Lee backend como verdad durable para `inventory` y `shadows`.
+3. Ejecuta mutaciones de `quests` con rollback si la confirmacion backend falla.
+4. Persiste nuevamente el estado reconciliado en cache local.
+
+### Deuda conocida
+
+- la `special quest decision` todavia no tiene endpoint propio en backend y sigue siendo `local_only`
+- siguen presentes warnings viejos de aliases `Pydantic` en tests; no bloquean la baseline de `Phase 4`
+
+### Verificacion de Phase 4
+
+Al cierre de la fase se verifico:
+
+- `py -3 -m pytest tests -q`
+- `py -3 -m compileall app tests`
+
+La expectativa de la baseline actual es que el backend pase completo con el contrato nuevo de `requestId` y los endpoints durables de `inventory` + `shadows`.

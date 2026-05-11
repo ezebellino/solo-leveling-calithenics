@@ -6,10 +6,21 @@ import 'package:solo_leveling_calisthenics/features/home/domain/hunter_profile.d
 import 'package:solo_leveling_calisthenics/features/home/domain/player_state.dart';
 import 'package:solo_leveling_calisthenics/features/home/domain/player_system_service.dart';
 import 'package:solo_leveling_calisthenics/features/home/presentation/controllers/home_controller.dart';
+import 'package:solo_leveling_calisthenics/core/logging/app_logger.dart';
+import 'package:solo_leveling_calisthenics/features/inventory/application/inventory_sync_coordinator.dart';
+import 'package:solo_leveling_calisthenics/features/inventory/data/inventory_api_client.dart';
+import 'package:solo_leveling_calisthenics/features/inventory/data/inventory_local_data_source.dart';
+import 'package:solo_leveling_calisthenics/features/inventory/data/inventory_repository.dart';
+import 'package:solo_leveling_calisthenics/features/inventory/domain/inventory_sync_result.dart';
 import 'package:solo_leveling_calisthenics/features/player/domain/player_snapshot.dart';
+import 'package:solo_leveling_calisthenics/features/shadows/application/shadow_progression_sync_coordinator.dart';
+import 'package:solo_leveling_calisthenics/features/shadows/data/shadow_progression_api_client.dart';
+import 'package:solo_leveling_calisthenics/features/shadows/data/shadow_progression_local_data_source.dart';
+import 'package:solo_leveling_calisthenics/features/shadows/data/shadow_progression_repository.dart';
 import 'package:solo_leveling_calisthenics/features/shadows/application/shadow_unlock_evaluator.dart';
 import 'package:solo_leveling_calisthenics/features/shadows/domain/shadow_catalog.dart';
 import 'package:solo_leveling_calisthenics/features/shadows/domain/shadow_progress_snapshot.dart';
+import 'package:solo_leveling_calisthenics/features/shadows/domain/shadow_progression_sync_result.dart';
 
 void main() {
   group('ShadowUnlockEvaluator', () {
@@ -465,6 +476,13 @@ void main() {
         storage: storage,
         system: system,
         apiClient: apiClient,
+        inventorySyncCoordinator: _FakeInventorySyncCoordinator(
+          initialItems: remoteSnapshot.inventory,
+        ),
+        shadowProgressionSyncCoordinator: _FakeShadowProgressionSyncCoordinator(
+          initialShadowArmy: remoteSnapshot.profile.shadowArmy,
+          initialUnlockedShadowIds: remoteSnapshot.unlockedShadowIds,
+        ),
       );
 
       await controller.load();
@@ -639,6 +657,14 @@ class _FakeHomeApiClient extends HomeApiClient {
   Future<RemoteHomeSnapshot> fetchSnapshot() async => _snapshot;
 
   @override
+  Future<RemoteCoreSnapshot> fetchCoreSnapshot() async => RemoteCoreSnapshot(
+        profile: _snapshot.profile,
+        selectedStageIndex: _snapshot.selectedStageIndex,
+        quests: _snapshot.quests,
+        completedDays: _snapshot.completedDays,
+      );
+
+  @override
   Future<void> advanceQuest(String questId, {int amount = 1}) async {}
 
   @override
@@ -670,4 +696,95 @@ class _FakeHomeApiClient extends HomeApiClient {
 
   @override
   void dispose() {}
+}
+
+class _FakeInventorySyncCoordinator extends InventorySyncCoordinator {
+  _FakeInventorySyncCoordinator({
+    required Map<String, int> initialItems,
+  }) : super(repository: _FakeInventoryRepository(initialItems: initialItems));
+}
+
+class _FakeShadowProgressionSyncCoordinator extends ShadowProgressionSyncCoordinator {
+  _FakeShadowProgressionSyncCoordinator({
+    required int initialShadowArmy,
+    required List<String> initialUnlockedShadowIds,
+  }) : super(
+          repository: _FakeShadowProgressionRepository(
+            initialShadowArmy: initialShadowArmy,
+            initialUnlockedShadowIds: initialUnlockedShadowIds,
+          ),
+        );
+}
+
+class _FakeInventoryRepository extends InventoryRepository {
+  _FakeInventoryRepository({
+    required Map<String, int> initialItems,
+  })  : _items = Map<String, int>.from(initialItems),
+        super(
+          apiClient: InventoryApiClient(baseUrl: 'https://example.com'),
+          localDataSource: InventoryLocalDataSource(
+            storage: _MemoryPlayerStateRepository(),
+          ),
+          logger: const AppLogger(),
+        );
+
+  Map<String, int> _items;
+
+  @override
+  Future<InventorySyncResult> refresh() async => InventorySyncResult(
+        items: Map<String, int>.from(_items),
+        source: InventorySyncSource.remote,
+        contractVersion: 'test.inventory.v1',
+      );
+
+  @override
+  Future<InventorySyncResult> sync(Map<String, int> items) async {
+    _items = Map<String, int>.from(items);
+    return InventorySyncResult(
+      items: Map<String, int>.from(_items),
+      source: InventorySyncSource.remote,
+      contractVersion: 'test.inventory.v1',
+    );
+  }
+}
+
+class _FakeShadowProgressionRepository extends ShadowProgressionRepository {
+  _FakeShadowProgressionRepository({
+    required int initialShadowArmy,
+    required List<String> initialUnlockedShadowIds,
+  })  : _shadowArmy = initialShadowArmy,
+        _unlockedShadowIds = List<String>.from(initialUnlockedShadowIds),
+        super(
+          apiClient: ShadowProgressionApiClient(baseUrl: 'https://example.com'),
+          localDataSource: ShadowProgressionLocalDataSource(
+            storage: _MemoryPlayerStateRepository(),
+          ),
+          logger: const AppLogger(),
+        );
+
+  int _shadowArmy;
+  List<String> _unlockedShadowIds;
+
+  @override
+  Future<ShadowProgressionSyncResult> refresh() async => ShadowProgressionSyncResult(
+        shadowArmy: _shadowArmy,
+        unlockedShadowIds: List<String>.from(_unlockedShadowIds),
+        source: ShadowProgressionSyncSource.remote,
+        contractVersion: 'test.shadows.v1',
+      );
+
+  @override
+  Future<ShadowProgressionSyncResult> sync({
+    required int shadowArmy,
+    required List<String> unlockedShadowIds,
+  }) async {
+    _shadowArmy = shadowArmy;
+    _unlockedShadowIds = List<String>.from(unlockedShadowIds);
+    return ShadowProgressionSyncResult(
+      shadowArmy: _shadowArmy,
+      unlockedShadowIds: List<String>.from(_unlockedShadowIds),
+      source: ShadowProgressionSyncSource.remote,
+      contractVersion: 'test.shadows.v1',
+    );
+  }
 }
