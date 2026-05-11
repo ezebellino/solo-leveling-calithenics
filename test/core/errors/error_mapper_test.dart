@@ -19,6 +19,8 @@ void main() {
 
       expect(mapped.code, 'network_unavailable');
       expect(mapped.message, 'No se pudo conectar al servidor.');
+      expect(mapped.isRetryable, isTrue);
+      expect(mapped.logContext['errorType'], 'SocketException');
     });
 
     test('maps unknown errors to generic app exception', () {
@@ -26,6 +28,9 @@ void main() {
 
       expect(mapped.code, 'unknown_error');
       expect(mapped.message, 'Ocurrio un error inesperado.');
+      expect(mapped.isRetryable, isFalse);
+      expect(mapped.logContext['errorType'], 'StateError');
+      expect(mapped.logContext['error'], contains('Bad state: boom'));
     });
   });
 }

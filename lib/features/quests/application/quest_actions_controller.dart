@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/error_mapper.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../home/domain/daily_quest.dart';
 import 'quest_action_handler.dart';
@@ -62,12 +63,12 @@ class QuestActionsController extends AutoDisposeNotifier<QuestActionsState> {
       clearError: true,
       didRollback: false,
     );
-    logger.info(
-      event: 'quest_action_started',
+    logger.sync(
+      feature: 'quests',
+      action: 'mutation',
       source: 'quests.controller',
-      context: <String, Object?>{
-        'actionKey': actionKey,
-      },
+      outcome: 'started',
+      entityId: actionKey,
     );
     try {
       await operation();
@@ -78,12 +79,12 @@ class QuestActionsController extends AutoDisposeNotifier<QuestActionsState> {
         clearError: true,
         didRollback: false,
       );
-      logger.info(
-        event: 'quest_action_succeeded',
+      logger.sync(
+        feature: 'quests',
+        action: 'mutation',
         source: 'quests.controller',
-        context: <String, Object?>{
-          'actionKey': actionKey,
-        },
+        outcome: 'succeeded',
+        entityId: actionKey,
       );
       return true;
     } catch (error) {
@@ -96,13 +97,18 @@ class QuestActionsController extends AutoDisposeNotifier<QuestActionsState> {
         lastErrorMessage: exception.message,
         didRollback: true,
       );
-      logger.warning(
-        event: 'quest_action_failed',
+      logger.sync(
+        feature: 'quests',
+        action: 'mutation',
         source: 'quests.controller',
+        outcome: 'failed',
+        entityId: actionKey,
+        level: LogLevel.warning,
         context: <String, Object?>{
-          'actionKey': actionKey,
           'errorCode': exception.code,
           'didRollback': true,
+          'retryable': exception.isRetryable,
+          ...exception.logContext,
         },
       );
       return false;

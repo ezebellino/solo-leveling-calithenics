@@ -38,7 +38,12 @@ class ShadowProgressionRepository {
   final AppLogger _logger;
 
   Future<ShadowProgressionSyncResult> refresh() async {
-    _logger.info(event: 'refresh_started', source: 'shadows.repository');
+    _logger.sync(
+      feature: 'shadows',
+      action: 'refresh',
+      source: 'shadows.repository',
+      outcome: 'started',
+    );
     try {
       final remote = await _apiClient.fetchProgression();
       final result = ShadowProgressionSyncResult(
@@ -48,10 +53,13 @@ class ShadowProgressionRepository {
         contractVersion: remote.contractVersion,
       );
       await _persistCache(result);
-      _logger.info(
-        event: 'refresh_remote_success',
+      _logger.sync(
+        feature: 'shadows',
+        action: 'refresh',
         source: 'shadows.repository',
+        outcome: 'succeeded',
         context: <String, Object?>{
+          'selectedSource': result.source.name,
           'contractVersion': result.contractVersion,
           'shadowArmy': result.shadowArmy,
           'unlockedCount': result.unlockedShadowIds.length,
@@ -60,16 +68,22 @@ class ShadowProgressionRepository {
       _logSourceSelected(result);
       return result;
     } catch (error) {
-      _logger.warning(
-        event: 'refresh_remote_failed',
+      _logger.sync(
+        feature: 'shadows',
+        action: 'refresh',
         source: 'shadows.repository',
+        outcome: 'failed',
+        level: LogLevel.warning,
         context: <String, Object?>{'error': error.toString()},
       );
       final fallback = await _localDataSource.loadSnapshot();
       if (fallback != null) {
-        _logger.warning(
-          event: 'refresh_local_fallback',
+        _logger.sync(
+          feature: 'shadows',
+          action: 'refresh',
           source: 'shadows.repository',
+          outcome: 'fallback',
+          level: LogLevel.warning,
           context: <String, Object?>{
             'selectedSource': fallback.source.name,
             'contractVersion': fallback.contractVersion,
@@ -86,9 +100,11 @@ class ShadowProgressionRepository {
     required int shadowArmy,
     required List<String> unlockedShadowIds,
   }) async {
-    _logger.info(
-      event: 'sync_started',
+    _logger.sync(
+      feature: 'shadows',
+      action: 'sync',
       source: 'shadows.repository',
+      outcome: 'started',
       context: <String, Object?>{
         'shadowArmy': shadowArmy,
         'unlockedCount': unlockedShadowIds.length,
@@ -105,9 +121,11 @@ class ShadowProgressionRepository {
       contractVersion: remote.contractVersion,
     );
     await _persistCache(result);
-    _logger.info(
-      event: 'sync_succeeded',
+    _logger.sync(
+      feature: 'shadows',
+      action: 'sync',
       source: 'shadows.repository',
+      outcome: 'succeeded',
       context: <String, Object?>{
         'contractVersion': result.contractVersion,
         'shadowArmy': result.shadowArmy,
@@ -125,17 +143,22 @@ class ShadowProgressionRepository {
         unlockedShadowIds: result.unlockedShadowIds,
         contractVersion: result.contractVersion,
       );
-      _logger.info(
-        event: 'cache_updated',
+      _logger.sync(
+        feature: 'shadows',
+        action: 'cache_update',
         source: 'shadows.repository',
+        outcome: 'succeeded',
         context: <String, Object?>{
           'contractVersion': result.contractVersion,
         },
       );
     } catch (error) {
-      _logger.warning(
-        event: 'cache_update_failed',
+      _logger.sync(
+        feature: 'shadows',
+        action: 'cache_update',
         source: 'shadows.repository',
+        outcome: 'failed',
+        level: LogLevel.warning,
         context: <String, Object?>{
           'contractVersion': result.contractVersion,
           'error': error.toString(),
@@ -145,9 +168,11 @@ class ShadowProgressionRepository {
   }
 
   void _logSourceSelected(ShadowProgressionSyncResult result) {
-    _logger.info(
-      event: 'source_selected',
+    _logger.sync(
+      feature: 'shadows',
+      action: 'source_selection',
       source: 'shadows.repository',
+      outcome: result.source.name,
       context: <String, Object?>{
         'selectedSource': result.source.name,
         'usedFallback': result.usedFallback,

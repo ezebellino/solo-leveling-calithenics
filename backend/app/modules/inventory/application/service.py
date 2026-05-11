@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from app.core.logging import logger
+from app.core.logging import log_event, logger
 from app.modules.inventory.api.schemas import InventorySyncContractResponse
 from app.modules.inventory.domain.entities import InventoryItemView
 from app.modules.inventory.infrastructure.models import InventoryItem
@@ -21,12 +21,24 @@ def list_default_user_inventory(
     session: Session,
     repository: InventoryRepository | None = None,
 ) -> list[InventoryItemView]:
-    logger.info("inventory_read_started")
+    log_event(
+        logger,
+        "inventory_read_started",
+        module_name="inventory",
+        route="/api/v1/inventory",
+        action="read",
+        result="started",
+    )
     repo = repository or InventoryRepository()
     items = repo.list_default_user_inventory(session)
-    logger.info(
+    log_event(
+        logger,
         "inventory_read_succeeded",
-        extra={"item_count": len(items)},
+        module_name="inventory",
+        route="/api/v1/inventory",
+        action="read",
+        result="succeeded",
+        item_count=len(items),
     )
     return [_to_view(item) for item in items]
 
@@ -45,14 +57,24 @@ def reconcile_default_user_inventory(
     quantities: dict[str, int],
     repository: InventoryRepository | None = None,
 ) -> list[InventoryItemView]:
-    logger.info(
+    log_event(
+        logger,
         "inventory_sync_started",
-        extra={"item_count": len(quantities)},
+        module_name="inventory",
+        route="/api/v1/inventory/sync",
+        action="sync",
+        result="started",
+        item_count=len(quantities),
     )
     repo = repository or InventoryRepository()
     items = repo.reconcile_default_user_inventory(session, quantities=quantities)
-    logger.info(
+    log_event(
+        logger,
         "inventory_sync_succeeded",
-        extra={"item_count": len(items)},
+        module_name="inventory",
+        route="/api/v1/inventory/sync",
+        action="sync",
+        result="succeeded",
+        item_count=len(items),
     )
     return [_to_view(item) for item in items]

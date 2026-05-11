@@ -38,7 +38,12 @@ class InventoryRepository {
   final AppLogger _logger;
 
   Future<InventorySyncResult> refresh() async {
-    _logger.info(event: 'refresh_started', source: 'inventory.repository');
+    _logger.sync(
+      feature: 'inventory',
+      action: 'refresh',
+      source: 'inventory.repository',
+      outcome: 'started',
+    );
     try {
       final remote = await _apiClient.fetchInventory();
       final result = InventorySyncResult(
@@ -47,10 +52,13 @@ class InventoryRepository {
         contractVersion: remote.contractVersion,
       );
       await _persistCache(result);
-      _logger.info(
-        event: 'refresh_remote_success',
+      _logger.sync(
+        feature: 'inventory',
+        action: 'refresh',
         source: 'inventory.repository',
+        outcome: 'succeeded',
         context: <String, Object?>{
+          'selectedSource': result.source.name,
           'contractVersion': result.contractVersion,
           'itemCount': result.items.length,
         },
@@ -58,16 +66,22 @@ class InventoryRepository {
       _logSourceSelected(result);
       return result;
     } catch (error) {
-      _logger.warning(
-        event: 'refresh_remote_failed',
+      _logger.sync(
+        feature: 'inventory',
+        action: 'refresh',
         source: 'inventory.repository',
+        outcome: 'failed',
+        level: LogLevel.warning,
         context: <String, Object?>{'error': error.toString()},
       );
       final fallback = await _localDataSource.loadSnapshot();
       if (fallback != null) {
-        _logger.warning(
-          event: 'refresh_local_fallback',
+        _logger.sync(
+          feature: 'inventory',
+          action: 'refresh',
           source: 'inventory.repository',
+          outcome: 'fallback',
+          level: LogLevel.warning,
           context: <String, Object?>{
             'selectedSource': fallback.source.name,
             'contractVersion': fallback.contractVersion,
@@ -81,9 +95,11 @@ class InventoryRepository {
   }
 
   Future<InventorySyncResult> sync(Map<String, int> items) async {
-    _logger.info(
-      event: 'sync_started',
+    _logger.sync(
+      feature: 'inventory',
+      action: 'sync',
       source: 'inventory.repository',
+      outcome: 'started',
       context: <String, Object?>{'itemCount': items.length},
     );
     final remote = await _apiClient.syncInventory(items);
@@ -93,9 +109,11 @@ class InventoryRepository {
       contractVersion: remote.contractVersion,
     );
     await _persistCache(result);
-    _logger.info(
-      event: 'sync_succeeded',
+    _logger.sync(
+      feature: 'inventory',
+      action: 'sync',
       source: 'inventory.repository',
+      outcome: 'succeeded',
       context: <String, Object?>{
         'contractVersion': result.contractVersion,
         'itemCount': result.items.length,
@@ -111,17 +129,22 @@ class InventoryRepository {
         result.items,
         contractVersion: result.contractVersion,
       );
-      _logger.info(
-        event: 'cache_updated',
+      _logger.sync(
+        feature: 'inventory',
+        action: 'cache_update',
         source: 'inventory.repository',
+        outcome: 'succeeded',
         context: <String, Object?>{
           'contractVersion': result.contractVersion,
         },
       );
     } catch (error) {
-      _logger.warning(
-        event: 'cache_update_failed',
+      _logger.sync(
+        feature: 'inventory',
+        action: 'cache_update',
         source: 'inventory.repository',
+        outcome: 'failed',
+        level: LogLevel.warning,
         context: <String, Object?>{
           'contractVersion': result.contractVersion,
           'error': error.toString(),
@@ -131,9 +154,11 @@ class InventoryRepository {
   }
 
   void _logSourceSelected(InventorySyncResult result) {
-    _logger.info(
-      event: 'source_selected',
+    _logger.sync(
+      feature: 'inventory',
+      action: 'source_selection',
       source: 'inventory.repository',
+      outcome: result.source.name,
       context: <String, Object?>{
         'selectedSource': result.source.name,
         'usedFallback': result.usedFallback,

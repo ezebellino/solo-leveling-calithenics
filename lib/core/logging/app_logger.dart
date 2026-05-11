@@ -5,6 +5,52 @@ enum LogLevel { debug, info, warning, error }
 class AppLogger {
   const AppLogger();
 
+  Map<String, Object?> buildRecord({
+    required LogLevel level,
+    required String action,
+    required String feature,
+    required String source,
+    required String outcome,
+    String? entityId,
+    Map<String, Object?> context = const <String, Object?>{},
+  }) {
+    return <String, Object?>{
+      'level': level.name,
+      'feature': feature,
+      'action': action,
+      'source': source,
+      'entityId': entityId,
+      'outcome': outcome,
+      ...context,
+    }..removeWhere((key, value) => value == null);
+  }
+
+  void sync({
+    required String feature,
+    required String action,
+    required String source,
+    required String outcome,
+    String? entityId,
+    LogLevel level = LogLevel.info,
+    Map<String, Object?> context = const <String, Object?>{},
+  }) {
+    final record = buildRecord(
+      level: level,
+      action: action,
+      feature: feature,
+      source: source,
+      entityId: entityId,
+      outcome: outcome,
+      context: context,
+    );
+    log(
+      level: level,
+      event: '${feature}_$action',
+      source: source,
+      context: record,
+    );
+  }
+
   void debug({
     required String event,
     String source = 'app',
@@ -43,6 +89,10 @@ class AppLogger {
     String source = 'app',
     Map<String, Object?> context = const <String, Object?>{},
   }) {
-    debugPrint('[${level.name}] $source::$event $context');
+    final sanitizedContext = <String, Object?>{
+      for (final entry in context.entries)
+        if (entry.value != null) entry.key: entry.value,
+    };
+    debugPrint('[${level.name}] $source::$event $sanitizedContext');
   }
 }
