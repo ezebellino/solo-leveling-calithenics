@@ -29,6 +29,20 @@ class RemoteHomeSnapshot {
   final int completedDays;
 }
 
+class RemoteCoreSnapshot {
+  const RemoteCoreSnapshot({
+    required this.profile,
+    required this.selectedStageIndex,
+    required this.quests,
+    required this.completedDays,
+  });
+
+  final HunterProfile profile;
+  final int selectedStageIndex;
+  final List<DailyQuest> quests;
+  final int completedDays;
+}
+
 class HomeApiClient {
   HomeApiClient({
     required this.baseUrl,
@@ -106,10 +120,25 @@ class HomeApiClient {
   }
 
   Future<RemoteHomeSnapshot> fetchSnapshot() async {
-    final playerJson = await _playerApiClient.fetchPlayerJson();
-    final questsResponse = await _httpClient.get(_uri('/api/v1/quests/today'));
+    final coreSnapshot = await fetchCoreSnapshot();
     final inventoryResult = await _inventoryRepository.refresh();
     final shadowResult = await _shadowProgressionRepository.refresh();
+
+    return RemoteHomeSnapshot(
+      profile: coreSnapshot.profile.copyWith(
+        shadowArmy: shadowResult.shadowArmy,
+      ),
+      selectedStageIndex: coreSnapshot.selectedStageIndex,
+      quests: coreSnapshot.quests,
+      inventory: inventoryResult.items,
+      unlockedShadowIds: shadowResult.unlockedShadowIds,
+      completedDays: coreSnapshot.completedDays,
+    );
+  }
+
+  Future<RemoteCoreSnapshot> fetchCoreSnapshot() async {
+    final playerJson = await _playerApiClient.fetchPlayerJson();
+    final questsResponse = await _httpClient.get(_uri('/api/v1/quests/today'));
 
     if (questsResponse.statusCode != 200) {
       throw Exception('No se pudieron obtener las quests remotas.');
@@ -117,17 +146,13 @@ class HomeApiClient {
 
     final questsJson = jsonDecode(questsResponse.body) as Map<String, dynamic>;
 
-    return RemoteHomeSnapshot(
-      profile: _profileFromPlayer(
-        playerJson['player'] as Map<String, dynamic>,
-        shadowArmy: shadowResult.shadowArmy,
-      ),
-      selectedStageIndex: ((playerJson['stage'] as Map<String, dynamic>)['index'] as int) - 1,
+    return RemoteCoreSnapshot(
+      profile: _profileFromPlayer(playerJson['player'] as Map<String, dynamic>),
+      selectedStageIndex:
+          ((playerJson['stage'] as Map<String, dynamic>)['index'] as int) - 1,
       quests: ((questsJson['quests'] as List<dynamic>))
           .map((quest) => _questFromApi(quest as Map<String, dynamic>))
           .toList(),
-      inventory: inventoryResult.items,
-      unlockedShadowIds: shadowResult.unlockedShadowIds,
       completedDays: playerJson['completedDays'] as int? ?? 0,
     );
   }

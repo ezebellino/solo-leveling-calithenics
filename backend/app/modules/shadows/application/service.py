@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.core.logging import logger
 from app.modules.shadows.api.schemas import ShadowSyncContractResponse
 from app.modules.shadows.domain.entities import ShadowProgressionView, ShadowUnlockView
 from app.modules.shadows.infrastructure.models import ShadowUnlock
@@ -26,12 +27,21 @@ def get_default_user_shadow_progression(
     session: Session,
     repository: ShadowsRepository | None = None,
 ) -> ShadowProgressionView:
+    logger.info("shadow_progression_read_started")
     repo = repository or ShadowsRepository()
     unlocks = repo.list_default_user_shadow_unlocks(session)
-    return ShadowProgressionView(
+    progression = ShadowProgressionView(
         shadow_army=repo.get_default_user_shadow_army_count(session),
         unlocked_shadows=[_to_view(item) for item in unlocks],
     )
+    logger.info(
+        "shadow_progression_read_succeeded",
+        extra={
+            "shadow_army": progression.shadow_army,
+            "unlocked_count": len(progression.unlocked_shadows),
+        },
+    )
+    return progression
 
 
 def get_default_user_shadow_army_count(
@@ -58,6 +68,13 @@ def reconcile_default_user_shadow_progression(
     unlocked_shadow_ids: list[str],
     repository: ShadowsRepository | None = None,
 ) -> ShadowProgressionView:
+    logger.info(
+        "shadow_progression_sync_started",
+        extra={
+            "shadow_army": shadow_army,
+            "requested_unlock_count": len(unlocked_shadow_ids),
+        },
+    )
     repo = repository or ShadowsRepository()
     existing_unlocks = repo.list_default_user_shadow_unlocks(session)
     existing_by_code = {unlock.code: unlock for unlock in existing_unlocks}
@@ -81,8 +98,16 @@ def reconcile_default_user_shadow_progression(
         keep_shadow_codes=requested_codes,
         create_unlocks=created_unlocks,
     )
-    return ShadowProgressionView(
+    result = ShadowProgressionView(
         shadow_army=progression.shadow_army,
         unlocked_shadows=[_to_view(item) for item in progression.unlocked_shadows],
     )
+    logger.info(
+        "shadow_progression_sync_succeeded",
+        extra={
+            "shadow_army": result.shadow_army,
+            "unlocked_count": len(result.unlocked_shadows),
+        },
+    )
+    return result
 

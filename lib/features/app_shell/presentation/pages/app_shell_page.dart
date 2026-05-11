@@ -17,6 +17,8 @@ import '../../../home/presentation/widgets/hud_navigation_bar.dart';
 import '../../../home/presentation/widgets/section_palette.dart';
 import '../../../inventory/application/inventory_action_handler.dart';
 import '../../../inventory/application/inventory_controller.dart';
+import '../../../inventory/application/inventory_sync_coordinator.dart';
+import '../../../inventory/data/inventory_repository.dart';
 import '../../../inventory/presentation/widgets/chest_reward_overlay.dart';
 import '../../../player/application/bootstrap_player_controller.dart';
 import '../../../player/application/bootstrap_player_state.dart';
@@ -27,6 +29,8 @@ import '../../../quests/application/quest_action_handler.dart';
 import '../../../quests/application/quest_actions_controller.dart';
 import '../../../shadows/domain/shadow_catalog.dart';
 import '../../../shadows/domain/shadow_entity.dart';
+import '../../../shadows/application/shadow_progression_sync_coordinator.dart';
+import '../../../shadows/data/shadow_progression_repository.dart';
 import '../../../shadows/presentation/widgets/shadow_unlock_overlay.dart';
 import '../../../system/application/system_overlay_controller.dart';
 import '../../../system/application/system_overlay_state.dart';
@@ -397,6 +401,16 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
   }
 
   Future<void> _initializeHomeController(PlayerBootstrapResult result) async {
+    final inventoryRepository = InventoryRepository.create(
+      baseUrl: ref.read(apiBaseUrlProvider),
+      logger: _logger,
+      storage: _storage,
+    );
+    final shadowProgressionRepository = ShadowProgressionRepository.create(
+      baseUrl: ref.read(apiBaseUrlProvider),
+      logger: _logger,
+      storage: _storage,
+    );
     final controller = HomeController(
       storage: _storage,
       system: _system,
@@ -404,8 +418,16 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
         baseUrl: ref.read(apiBaseUrlProvider),
         storage: _storage,
         logger: _logger,
+        inventoryRepository: inventoryRepository,
+        shadowProgressionRepository: shadowProgressionRepository,
       ),
       logger: _logger,
+      inventorySyncCoordinator: InventorySyncCoordinator(
+        repository: inventoryRepository,
+      ),
+      shadowProgressionSyncCoordinator: ShadowProgressionSyncCoordinator(
+        repository: shadowProgressionRepository,
+      ),
     );
 
     setState(() {

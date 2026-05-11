@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/logging/app_logger.dart';
+import '../../../inventory/application/inventory_sync_coordinator.dart';
+import '../../../shadows/application/shadow_progression_sync_coordinator.dart';
 import '../../../player/domain/player_snapshot.dart';
 import '../../data/home_api_client.dart';
 import '../../data/local_player_state_repository.dart';
@@ -16,15 +18,21 @@ class HomeController extends ChangeNotifier {
     required PlayerSystemService system,
     HomeApiClient? apiClient,
     AppLogger? logger,
+    InventorySyncCoordinator? inventorySyncCoordinator,
+    ShadowProgressionSyncCoordinator? shadowProgressionSyncCoordinator,
   })  : _storage = storage,
         _system = system,
         _apiClient = apiClient,
-        _logger = logger;
+        _logger = logger,
+        _inventorySyncCoordinator = inventorySyncCoordinator,
+        _shadowProgressionSyncCoordinator = shadowProgressionSyncCoordinator;
 
   final LocalPlayerStateRepository _storage;
   final PlayerSystemService _system;
   final HomeApiClient? _apiClient;
   final AppLogger? _logger;
+  final InventorySyncCoordinator? _inventorySyncCoordinator;
+  final ShadowProgressionSyncCoordinator? _shadowProgressionSyncCoordinator;
 
   PlayerState? _playerState;
   bool _isLoading = true;
@@ -353,8 +361,8 @@ class HomeController extends ChangeNotifier {
     }
 
     try {
-      final snapshot = await apiClient.fetchSnapshot();
-      final remoteProfile = snapshot.profile;
+      final coreSnapshot = await apiClient.fetchCoreSnapshot();
+      final remoteProfile = coreSnapshot.profile;
       final localProfile = fallback.profile;
       final mergedProfile = localProfile.copyWith(
         alias: remoteProfile.alias,
@@ -362,13 +370,10 @@ class HomeController extends ChangeNotifier {
             ? remoteProfile.avatarUrl
             : localProfile.avatarUrl,
         avatarImageBase64: localProfile.avatarImageBase64,
-        shadowArmy: remoteProfile.shadowArmy,
       );
 
       return fallback.copyWith(
         profile: mergedProfile,
-        inventory: snapshot.inventory,
-        unlockedShadowIds: snapshot.unlockedShadowIds,
       );
     } catch (_) {
       return fallback;
@@ -448,8 +453,7 @@ class HomeController extends ChangeNotifier {
 
   Future<void> _refreshDurableReadModels() async {
     final state = _playerState;
-    final apiClient = _apiClient;
-    if (state == null || apiClient == null) {
+    if (state == null) {
       return;
     }
 
@@ -458,7 +462,18 @@ class HomeController extends ChangeNotifier {
       source: 'home.controller',
     );
     try {
-      final merged = await _mergeRemoteSnapshot(state);
+      var merged = await _mergeRemoteSnapshot(state);
+      final inventoryResult = await _inventorySyncCoordinator?.refresh();
+      if (inventoryResult != null) {
+        merged = merged.copyWith(inventory: inventoryResult.items);
+      }
+      final shadowResult = await _shadowProgressionSyncCoordinator?.refresh();
+      if (shadowResult != null) {
+        merged = merged.copyWith(
+          profile: merged.profile.copyWith(shadowArmy: shadowResult.shadowArmy),
+          unlockedShadowIds: shadowResult.unlockedShadowIds,
+        );
+      }
       if (!_hasDurableFeatureChanges(state, merged)) {
         return;
       }
@@ -513,13 +528,12 @@ class HomeController extends ChangeNotifier {
   }
 
   Future<void> _pushDurableFeatureState(PlayerState state) async {
-    final apiClient = _apiClient;
-    if (apiClient == null) {
+    if (_inventorySyncCoordinator == null && _shadowProgressionSyncCoordinator == null) {
       return;
     }
 
-    await apiClient.syncInventory(state.inventory);
-    await apiClient.syncShadowProgression(
+    await _inventorySyncCoordinator?.sync(state.inventory);
+    await _shadowProgressionSyncCoordinator?.sync(
       shadowArmy: state.profile.shadowArmy,
       unlockedShadowIds: state.unlockedShadowIds,
     );
