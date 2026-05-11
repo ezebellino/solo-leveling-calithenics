@@ -261,7 +261,12 @@ def test_advance_quest_returns_404_for_nonexistent_quest(client) -> None:
     response = client.post(f"/api/v1/quests/{uuid4()}/advance", json={"amount": 1})
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "Quest no encontrada."}
+    assert response.json() == {
+        "error": {
+            "code": "quest_not_found",
+            "message": "Quest no encontrada.",
+        }
+    }
 
 
 def test_advance_quest_returns_404_for_stale_quest(client) -> None:
@@ -271,14 +276,24 @@ def test_advance_quest_returns_404_for_stale_quest(client) -> None:
     response = client.post(f"/api/v1/quests/{quest_id}/advance", json={"amount": 1})
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "Quest no encontrada."}
+    assert response.json() == {
+        "error": {
+            "code": "quest_not_found",
+            "message": "Quest no encontrada.",
+        }
+    }
 
 
 def test_complete_quest_returns_404_for_nonexistent_quest(client) -> None:
     response = client.post(f"/api/v1/quests/{uuid4()}/complete")
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "Quest no encontrada."}
+    assert response.json() == {
+        "error": {
+            "code": "quest_not_found",
+            "message": "Quest no encontrada.",
+        }
+    }
 
 
 def test_complete_quest_returns_404_for_stale_quest(client) -> None:
@@ -288,7 +303,12 @@ def test_complete_quest_returns_404_for_stale_quest(client) -> None:
     response = client.post(f"/api/v1/quests/{quest_id}/complete")
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "Quest no encontrada."}
+    assert response.json() == {
+        "error": {
+            "code": "quest_not_found",
+            "message": "Quest no encontrada.",
+        }
+    }
 
 
 def test_advance_quest_rejects_non_positive_amount(client) -> None:
@@ -297,4 +317,9 @@ def test_advance_quest_rejects_non_positive_amount(client) -> None:
     response = client.post(f"/api/v1/quests/{quest_id}/advance", json={"amount": 0})
 
     assert response.status_code == 400
-    assert response.json() == {"detail": "El avance debe ser mayor o igual a 1."}
+    assert response.json() == {
+        "error": {
+            "code": "invalid_quest_advance",
+            "message": "El avance debe ser mayor o igual a 1.",
+        }
+    }

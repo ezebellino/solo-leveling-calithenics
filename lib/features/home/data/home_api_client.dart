@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../../core/errors/app_exception.dart';
 import '../../player/data/player_api_client.dart';
 import '../domain/daily_quest.dart';
 import '../domain/hunter_profile.dart';
@@ -85,16 +86,20 @@ class HomeApiClient {
       body: jsonEncode({'amount': amount}),
     );
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('No se pudo avanzar la quest remota.');
-    }
+    _throwIfRequestFailed(
+      response,
+      fallbackCode: 'quest_sync_failed',
+      fallbackMessage: 'No se pudo avanzar la mision remota.',
+    );
   }
 
   Future<void> completeQuest(String questId) async {
     final response = await _httpClient.post(_uri('/api/v1/quests/$questId/complete'));
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('No se pudo completar la quest remota.');
-    }
+    _throwIfRequestFailed(
+      response,
+      fallbackCode: 'quest_complete_failed',
+      fallbackMessage: 'No se pudo completar la mision remota.',
+    );
   }
 
   HunterProfile _profileFromPlayer(Map<String, dynamic> json) {
@@ -136,6 +141,36 @@ class HomeApiClient {
       default:
         return code;
     }
+  }
+
+  void _throwIfRequestFailed(
+    http.Response response, {
+    required String fallbackCode,
+    required String fallbackMessage,
+  }) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return;
+    }
+
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        final errorJson = decoded['error'];
+        if (errorJson is Map<String, dynamic>) {
+          final code = errorJson['code'];
+          final message = errorJson['message'];
+          if (code is String && message is String) {
+            throw AppException(code, message);
+          }
+        }
+      }
+    } catch (error) {
+      if (error is AppException) {
+        rethrow;
+      }
+    }
+
+    throw AppException(fallbackCode, fallbackMessage);
   }
 
   void dispose() {

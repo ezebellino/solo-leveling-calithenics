@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../home/domain/daily_quest.dart';
 import '../../../home/domain/hunter_profile.dart';
@@ -10,9 +11,10 @@ import '../../../home/presentation/widgets/system_badge.dart';
 import '../../../home/presentation/widgets/training_widgets.dart';
 import '../../../inventory/presentation/widgets/inventory_panel.dart';
 import '../../../system/presentation/widgets/system_notification_panel.dart';
+import '../../application/quest_actions_controller.dart';
 import '../widgets/quest_card.dart';
 
-class QuestsPage extends StatefulWidget {
+class QuestsPage extends ConsumerStatefulWidget {
   const QuestsPage({
     required this.profile,
     required this.quests,
@@ -23,9 +25,6 @@ class QuestsPage extends StatefulWidget {
     required this.trainingPath,
     required this.selectedStageIndex,
     required this.palette,
-    required this.onAdvanceQuest,
-    required this.onAdvanceSpecialQuest,
-    required this.onDecideSpecialQuest,
     super.key,
   });
 
@@ -38,20 +37,15 @@ class QuestsPage extends StatefulWidget {
   final TrainingPath trainingPath;
   final int selectedStageIndex;
   final SectionPalette palette;
-  final Future<void> Function(DailyQuest quest) onAdvanceQuest;
-  final Future<void> Function(DailyQuest quest) onAdvanceSpecialQuest;
-  final Future<void> Function(bool accept) onDecideSpecialQuest;
 
   @override
-  State<QuestsPage> createState() => _QuestsPageState();
+  ConsumerState<QuestsPage> createState() => _QuestsPageState();
 }
 
-class _QuestsPageState extends State<QuestsPage> {
+class _QuestsPageState extends ConsumerState<QuestsPage> {
   var _dailyNotificationDismissed = false;
   String? _specialQuestStatusOverride;
   String? _specialQuestFeedback;
-  var _isSubmitting = false;
-  String? _activeActionKey;
 
   @override
   void didUpdateWidget(covariant QuestsPage oldWidget) {
@@ -67,8 +61,7 @@ class _QuestsPageState extends State<QuestsPage> {
     if (widget.specialQuestStatus != oldWidget.specialQuestStatus) {
       _specialQuestStatusOverride = null;
       _specialQuestFeedback = null;
-      _isSubmitting = false;
-      _activeActionKey = null;
+      ref.read(questActionsControllerProvider.notifier).clearFeedback();
     }
   }
 
@@ -77,6 +70,10 @@ class _QuestsPageState extends State<QuestsPage> {
     final theme = Theme.of(context);
     final effectiveSpecialQuestStatus =
         _specialQuestStatusOverride ?? widget.specialQuestStatus;
+    final questActionState = ref.watch(questActionsControllerProvider);
+    final questActionController = ref.read(
+      questActionsControllerProvider.notifier,
+    );
 
     return ScreenFrame(
       primary: widget.palette.primary,
@@ -118,32 +115,24 @@ class _QuestsPageState extends State<QuestsPage> {
             _PendingSpecialQuestPanel(
               specialQuest: widget.specialQuest!,
               palette: widget.palette,
-              isSubmitting: _isSubmitting,
+              isSubmitting: questActionState.isSubmitting,
               onDecision: (accept) async {
                 setState(() {
-                  _isSubmitting = true;
-                  _activeActionKey = accept ? 'special:accept' : 'special:reject';
                   _specialQuestStatusOverride = accept ? 'accepted' : 'rejected';
                   _specialQuestFeedback = null;
                 });
-                try {
-                  await widget.onDecideSpecialQuest(accept);
-                  if (!mounted) {
-                    return;
-                  }
+                final success = await questActionController.decideSpecialQuest(
+                  accept,
+                );
+                if (!mounted) {
+                  return;
+                }
+                if (!success) {
+                  final latestState = ref.read(questActionsControllerProvider);
                   setState(() {
-                    _isSubmitting = false;
-                    _activeActionKey = null;
-                  });
-                } catch (_) {
-                  if (!mounted) {
-                    return;
-                  }
-                  setState(() {
-                    _isSubmitting = false;
-                    _activeActionKey = null;
                     _specialQuestStatusOverride = null;
                     _specialQuestFeedback =
+                        latestState.lastErrorMessage ??
                         'El Sistema no pudo registrar tu decision. Intentalo nuevamente.';
                   });
                 }
@@ -157,12 +146,13 @@ class _QuestsPageState extends State<QuestsPage> {
               secondary: widget.palette.secondary,
               highlight: widget.palette.highlight,
               isSpecial: true,
-              isSubmitting:
-                  _isSubmitting &&
-                  _activeActionKey == 'special:${widget.specialQuest!.id}',
+              isSubmitting: questActionState.isSubmitting &&
+                  questActionState.activeActionKey ==
+                      'special:${widget.specialQuest!.id}',
               onAdvance: () => _runAction(
-                actionKey: 'special:${widget.specialQuest!.id}',
-                operation: () => widget.onAdvanceSpecialQuest(widget.specialQuest!),
+                operation: () => questActionController.advanceSpecialQuest(
+                  widget.specialQuest!,
+                ),
               ),
             )
           else
@@ -211,12 +201,10 @@ class _QuestsPageState extends State<QuestsPage> {
             primary: widget.palette.primary,
             secondary: widget.palette.secondary,
             highlight: widget.palette.highlight,
-            isSubmitting:
-                _isSubmitting &&
-                _activeActionKey == 'quest:${quest.id}',
+            isSubmitting: questActionState.isSubmitting &&
+                questActionState.activeActionKey == 'quest:${quest.id}',
             onAdvance: () => _runAction(
-              actionKey: 'quest:${quest.id}',
-              operation: () => widget.onAdvanceQuest(quest),
+              operation: () => questActionController.advanceQuest(quest),
             ),
           ),
         ),
@@ -357,25 +345,20 @@ class _QuestsPageState extends State<QuestsPage> {
   }
 
   Future<void> _runAction({
-    required String actionKey,
-    required Future<void> Function() operation,
+    required Future<bool> Function() operation,
   }) async {
-    if (_isSubmitting) {
+    final state = ref.read(questActionsControllerProvider);
+    if (state.isSubmitting) {
       return;
     }
-    setState(() {
-      _isSubmitting = true;
-      _activeActionKey = actionKey;
-    });
-    try {
-      await operation();
-    } finally {
-      if (!mounted) {
-        return;
-      }
+    final success = await operation();
+    if (!mounted) {
+      return;
+    }
+    final nextState = ref.read(questActionsControllerProvider);
+    if (!success && nextState.lastErrorMessage != null) {
       setState(() {
-        _isSubmitting = false;
-        _activeActionKey = null;
+        _specialQuestFeedback = nextState.lastErrorMessage;
       });
     }
   }

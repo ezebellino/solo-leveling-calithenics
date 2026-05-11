@@ -6,6 +6,9 @@ import 'package:solo_leveling_calisthenics/features/home/domain/hunter_profile.d
 import 'package:solo_leveling_calisthenics/features/home/domain/training_path.dart';
 import 'package:solo_leveling_calisthenics/features/home/presentation/widgets/section_palette.dart';
 import 'package:solo_leveling_calisthenics/features/inventory/application/inventory_action_handler.dart';
+import 'package:solo_leveling_calisthenics/features/inventory/application/inventory_controller.dart';
+import 'package:solo_leveling_calisthenics/features/quests/application/quest_action_handler.dart';
+import 'package:solo_leveling_calisthenics/features/quests/application/quest_actions_controller.dart';
 import 'package:solo_leveling_calisthenics/features/quests/presentation/pages/quests_page.dart';
 
 void main() {
@@ -84,6 +87,13 @@ void main() {
             clearChestRewards: _noopSync,
           ),
         ),
+        questActionHandlerProvider.overrideWithValue(
+          QuestActionHandler(
+            advanceQuest: advanceQuest ?? _noopQuest,
+            advanceSpecialQuest: advanceSpecialQuest ?? _noopQuest,
+            decideSpecialQuest: decideSpecialQuest,
+          ),
+        ),
       ],
       child: MaterialApp(
         home: Scaffold(
@@ -98,9 +108,6 @@ void main() {
             trainingPath: trainingPath,
             selectedStageIndex: 0,
             palette: palette,
-            onAdvanceQuest: advanceQuest ?? _noopQuest,
-            onAdvanceSpecialQuest: advanceSpecialQuest ?? _noopQuest,
-            onDecideSpecialQuest: decideSpecialQuest,
           ),
         ),
       ),
@@ -117,7 +124,7 @@ void main() {
     expect(find.text('[ Comenzar mision ]'), findsOneWidget);
 
     await tester.tap(find.text('[ Comenzar mision ]'));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(find.text('[ Comenzar mision ]'), findsNothing);
     expect(find.text('REGISTRO DE MISIONES'), findsOneWidget);

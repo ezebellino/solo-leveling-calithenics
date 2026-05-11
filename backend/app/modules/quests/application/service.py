@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.modules.quests.api.schemas import DailyQuestResponse, QuestListResponse
 from app.modules.quests.domain.entities import PlayerRewardState, QuestProgressState
+from app.modules.quests.domain.exceptions import (
+    InvalidQuestAdvanceError,
+    QuestNotFoundError,
+)
 from app.modules.quests.domain.progression import (
     advance_quest_state,
     apply_quest_reward,
@@ -73,7 +76,7 @@ def _get_quest_or_404(
 ) -> DailyQuest:
     quest = repository.get_quest_for_default_user(session, quest_id, quest_date=today)
     if quest is None:
-        raise HTTPException(status_code=404, detail="Quest no encontrada.")
+        raise QuestNotFoundError()
     return quest
 
 
@@ -95,7 +98,7 @@ def advance_quest(
     today: date | None = None,
 ) -> DailyQuestResponse:
     if amount < 1:
-        raise HTTPException(status_code=400, detail="El avance debe ser mayor o igual a 1.")
+        raise InvalidQuestAdvanceError()
 
     repo = repository or QuestRepository()
     quest = _get_quest_or_404(session, quest_id, repo, today or date.today())

@@ -129,8 +129,9 @@ class HomeController extends ChangeNotifier {
     if (state == null) {
       return;
     }
+    final previousState = state;
     await _applyUpdate(_system.advanceQuest(state, quest));
-    await _syncAdvanceQuest(quest);
+    await _syncAdvanceQuest(quest, previousState: previousState);
   }
 
   Future<void> advanceSpecialQuest(DailyQuest quest) async {
@@ -139,6 +140,13 @@ class HomeController extends ChangeNotifier {
       return;
     }
     await _applyUpdate(_system.advanceSpecialQuest(state, quest));
+    _logger?.info(
+      event: 'special_quest_advanced_locally',
+      source: 'home.controller',
+      context: <String, Object?>{
+        'questId': quest.id,
+      },
+    );
   }
 
   Future<void> decideSpecialQuest(bool accept) async {
@@ -154,6 +162,7 @@ class HomeController extends ChangeNotifier {
         context: <String, Object?>{
           'accept': accept,
           'status': _playerState?.weeklySpecialStatus,
+          'syncMode': 'local_only',
         },
       );
     } catch (error, stackTrace) {
@@ -352,13 +361,23 @@ class HomeController extends ChangeNotifier {
     }
   }
 
-  Future<void> _syncAdvanceQuest(DailyQuest quest) async {
+  Future<void> _syncAdvanceQuest(
+    DailyQuest quest, {
+    required PlayerState previousState,
+  }) async {
     final apiClient = _apiClient;
     if (apiClient == null) {
       return;
     }
 
     try {
+      _logger?.info(
+        event: 'quest_sync_started',
+        source: 'home.controller',
+        context: <String, Object?>{
+          'questId': quest.id,
+        },
+      );
       await apiClient.advanceQuest(quest.id);
       final state = _playerState;
       if (state == null) {
@@ -366,9 +385,37 @@ class HomeController extends ChangeNotifier {
       }
       final remoteState = await _mergeRemoteSnapshot(state);
       await _persist(remoteState);
-    } catch (_) {
-      _showRewardNotice('Progreso remoto no disponible');
+      _logger?.info(
+        event: 'quest_sync_succeeded',
+        source: 'home.controller',
+        context: <String, Object?>{
+          'questId': quest.id,
+        },
+      );
+    } catch (error) {
+      _logger?.warning(
+        event: 'quest_sync_failed',
+        source: 'home.controller',
+        context: <String, Object?>{
+          'questId': quest.id,
+          'error': error.toString(),
+          'rollbackApplied': true,
+        },
+      );
+      _clearTransientSyncState();
+      await _persist(previousState);
+      _showRewardNotice('El Sistema revirtio el avance por una falla de sincronizacion.');
     }
+  }
+
+  void _clearTransientSyncState() {
+    _pendingLevelUp = null;
+    _pendingClassEvolution = null;
+    _pendingUnlockedShadowId = null;
+    _pendingChestRewards = null;
+    _rewardNoticeTimer?.cancel();
+    _rewardNotice = null;
+    notifyListeners();
   }
 
   void _showRewardNotice(String message) {

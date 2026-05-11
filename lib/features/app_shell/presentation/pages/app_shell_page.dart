@@ -23,6 +23,8 @@ import '../../../player/application/bootstrap_player_state.dart';
 import '../../../player/domain/player_bootstrap_result.dart';
 import '../../../player/presentation/pages/player_profile_tab.dart';
 import '../../../player/presentation/pages/player_stats_tab.dart';
+import '../../../quests/application/quest_action_handler.dart';
+import '../../../quests/application/quest_actions_controller.dart';
 import '../../../shadows/domain/shadow_catalog.dart';
 import '../../../shadows/domain/shadow_entity.dart';
 import '../../../shadows/presentation/widgets/shadow_unlock_overlay.dart';
@@ -251,6 +253,13 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
 
           return ProviderScope(
             overrides: [
+              questActionHandlerProvider.overrideWithValue(
+                QuestActionHandler(
+                  advanceQuest: _controller!.advanceQuest,
+                  advanceSpecialQuest: _controller!.advanceSpecialQuest,
+                  decideSpecialQuest: _controller!.decideSpecialQuest,
+                ),
+              ),
               inventoryActionHandlerProvider.overrideWithValue(
                 InventoryActionHandler(
                   useXpBoost: _controller!.useXpBoost,
@@ -582,9 +591,6 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
           trainingPath: _trainingPath,
           selectedStageIndex: _selectedStageIndex,
           palette: _questPalette,
-          onAdvanceQuest: _controller!.advanceQuest,
-          onAdvanceSpecialQuest: _controller!.advanceSpecialQuest,
-          onDecideSpecialQuest: _controller!.decideSpecialQuest,
         );
       case 2:
         return PlayerStatsTab(
