@@ -7,7 +7,7 @@ abstract class AuthSessionRepository {
 
   Future<AuthSession?> restoreSession();
 
-  Future<AuthSession> signInWithGooglePreview({
+  Future<AuthSession> signInWithGoogle({
     required String email,
     required String displayName,
   });
@@ -15,6 +15,7 @@ abstract class AuthSessionRepository {
   Future<MagicLinkRequestResult> requestMagicLink({
     required String email,
     String? displayName,
+    String? redirectUrl,
   });
 
   Future<AuthSession> verifyMagicLink({

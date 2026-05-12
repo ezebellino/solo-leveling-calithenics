@@ -11,8 +11,22 @@ def test_auth_providers_endpoint_contract(client) -> None:
     assert response.status_code == 200
     assert response.json() == {
         "providers": [
-            {"code": "google", "displayName": "Google", "transport": "oauth"},
-            {"code": "magic_link", "displayName": "Magic Link", "transport": "email"},
+            {
+                "code": "google",
+                "displayName": "Google",
+                "transport": "oauth",
+                "availability": "development_preview",
+                "statusMessage": "Usa bypass de desarrollo hasta integrar Google Sign-In real.",
+                "requiresManualCompletion": False,
+            },
+            {
+                "code": "magic_link",
+                "displayName": "Magic Link",
+                "transport": "email",
+                "availability": "development_preview",
+                "statusMessage": "Entrega en modo preview para desarrollo local.",
+                "requiresManualCompletion": True,
+            },
         ],
         "sessionPersistence": "database",
         "tokenStrategy": "jwt_plus_session_store",
@@ -55,13 +69,18 @@ def test_magic_link_request_and_verify_issue_backend_session(client) -> None:
         json={
             "email": "magic@example.com",
             "displayName": "Magic User",
+            "redirectUrl": "http://localhost:7358/auth",
         },
     )
 
     assert request_response.status_code == 200
     request_payload = request_response.json()
-    assert request_payload["delivery"] == "accepted"
+    assert request_payload["delivery"] == "preview"
     assert request_payload["previewToken"]
+    assert request_payload["previewMode"] is True
+    assert request_payload["verificationUrl"] == (
+        f"http://localhost:7358/auth?token={request_payload['previewToken']}"
+    )
 
     verify_response = client.post(
         "/api/v1/auth/magic-link/verify",

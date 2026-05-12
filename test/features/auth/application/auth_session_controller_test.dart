@@ -18,6 +18,7 @@ void main() {
             code: 'google',
             displayName: 'Google',
             transport: 'oauth',
+            availability: 'development_preview',
           ),
         ],
       );
@@ -51,6 +52,7 @@ void main() {
             code: 'magic_link',
             displayName: 'Magic Link',
             transport: 'email',
+            availability: 'development_preview',
           ),
         ],
         restoredSession: _session,
@@ -70,7 +72,7 @@ void main() {
       expect(state.providers.single.code, 'magic_link');
     });
 
-    test('signInWithGooglePreview stores authenticated session', () async {
+    test('signInWithGoogle stores authenticated session', () async {
       final repository = _FakeAuthSessionRepository(
         providers: const [],
         googleSession: _session,
@@ -82,7 +84,7 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      await container.read(authSessionControllerProvider.notifier).signInWithGooglePreview(
+      await container.read(authSessionControllerProvider.notifier).signInWithGoogle(
             email: 'hunter@example.com',
             displayName: 'Hunter',
           );
@@ -99,8 +101,10 @@ void main() {
         magicLinkResult: MagicLinkRequestResult(
           email: 'magic@example.com',
           expiresAt: DateTime.utc(2026, 5, 12, 12),
-          delivery: 'accepted',
+          delivery: 'preview',
+          previewMode: true,
           previewToken: 'preview-token-123',
+          verificationUrl: 'http://localhost:7358/auth?token=preview-token-123',
         ),
       );
       final container = ProviderContainer(
@@ -113,11 +117,14 @@ void main() {
       await container.read(authSessionControllerProvider.notifier).requestMagicLink(
             email: 'magic@example.com',
             displayName: 'Magic User',
+            redirectUrl: 'http://localhost:7358/auth',
           );
 
       final state = container.read(authSessionControllerProvider);
       expect(state.magicLinkPreviewToken, 'preview-token-123');
       expect(state.magicLinkEmail, 'magic@example.com');
+      expect(state.magicLinkDelivery, 'preview');
+      expect(state.magicLinkVerificationUrl, 'http://localhost:7358/auth?token=preview-token-123');
     });
 
     test('signOut clears the active session', () async {
@@ -132,7 +139,7 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      await container.read(authSessionControllerProvider.notifier).signInWithGooglePreview(
+      await container.read(authSessionControllerProvider.notifier).signInWithGoogle(
             email: 'hunter@example.com',
             displayName: 'Hunter',
           );
@@ -207,6 +214,7 @@ class _FakeAuthSessionRepository implements AuthSessionRepository {
   Future<MagicLinkRequestResult> requestMagicLink({
     required String email,
     String? displayName,
+    String? redirectUrl,
   }) async {
     return magicLinkResult!;
   }
@@ -215,7 +223,7 @@ class _FakeAuthSessionRepository implements AuthSessionRepository {
   Future<AuthSession?> restoreSession() async => restoredSession;
 
   @override
-  Future<AuthSession> signInWithGooglePreview({
+  Future<AuthSession> signInWithGoogle({
     required String email,
     required String displayName,
   }) async {

@@ -10,6 +10,9 @@ class AuthSessionState {
     this.errorMessage,
     this.magicLinkPreviewToken,
     this.magicLinkEmail,
+    this.magicLinkDelivery,
+    this.magicLinkExpiresAt,
+    this.magicLinkVerificationUrl,
   });
 
   final bool isRestoring;
@@ -19,6 +22,9 @@ class AuthSessionState {
   final String? errorMessage;
   final String? magicLinkPreviewToken;
   final String? magicLinkEmail;
+  final String? magicLinkDelivery;
+  final DateTime? magicLinkExpiresAt;
+  final String? magicLinkVerificationUrl;
 
   bool get isAuthenticated => session != null;
 
@@ -30,10 +36,16 @@ class AuthSessionState {
     String? errorMessage,
     String? magicLinkPreviewToken,
     String? magicLinkEmail,
+    String? magicLinkDelivery,
+    DateTime? magicLinkExpiresAt,
+    String? magicLinkVerificationUrl,
     bool clearSession = false,
     bool clearErrorMessage = false,
     bool clearMagicLinkPreviewToken = false,
     bool clearMagicLinkEmail = false,
+    bool clearMagicLinkDelivery = false,
+    bool clearMagicLinkExpiresAt = false,
+    bool clearMagicLinkVerificationUrl = false,
   }) {
     return AuthSessionState(
       isRestoring: isRestoring ?? this.isRestoring,
@@ -45,6 +57,15 @@ class AuthSessionState {
           ? null
           : (magicLinkPreviewToken ?? this.magicLinkPreviewToken),
       magicLinkEmail: clearMagicLinkEmail ? null : (magicLinkEmail ?? this.magicLinkEmail),
+      magicLinkDelivery: clearMagicLinkDelivery
+          ? null
+          : (magicLinkDelivery ?? this.magicLinkDelivery),
+      magicLinkExpiresAt: clearMagicLinkExpiresAt
+          ? null
+          : (magicLinkExpiresAt ?? this.magicLinkExpiresAt),
+      magicLinkVerificationUrl: clearMagicLinkVerificationUrl
+          ? null
+          : (magicLinkVerificationUrl ?? this.magicLinkVerificationUrl),
     );
   }
 }

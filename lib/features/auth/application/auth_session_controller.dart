@@ -64,13 +64,13 @@ class AuthSessionController extends Notifier<AuthSessionState> {
     }
   }
 
-  Future<void> signInWithGooglePreview({
+  Future<void> signInWithGoogle({
     required String email,
     required String displayName,
   }) async {
     await _runSessionAction(
-      action: 'sign_in_google_preview',
-      perform: () => ref.read(authSessionRepositoryProvider).signInWithGooglePreview(
+      action: 'sign_in_google',
+      perform: () => ref.read(authSessionRepositoryProvider).signInWithGoogle(
             email: email,
             displayName: displayName,
           ),
@@ -81,6 +81,7 @@ class AuthSessionController extends Notifier<AuthSessionState> {
   Future<void> requestMagicLink({
     required String email,
     String? displayName,
+    String? redirectUrl,
   }) async {
     final logger = ref.read(appLoggerProvider);
     state = state.copyWith(
@@ -92,11 +93,15 @@ class AuthSessionController extends Notifier<AuthSessionState> {
       final result = await ref.read(authSessionRepositoryProvider).requestMagicLink(
             email: email,
             displayName: displayName,
+            redirectUrl: redirectUrl,
           );
       state = state.copyWith(
         isSubmitting: false,
         magicLinkPreviewToken: result.previewToken,
         magicLinkEmail: result.email,
+        magicLinkDelivery: result.delivery,
+        magicLinkExpiresAt: result.expiresAt,
+        magicLinkVerificationUrl: result.verificationUrl,
         clearErrorMessage: true,
       );
       logger.sync(
@@ -107,6 +112,8 @@ class AuthSessionController extends Notifier<AuthSessionState> {
         context: <String, Object?>{
           'delivery': result.delivery,
           'hasPreviewToken': result.previewToken != null,
+          'previewMode': result.previewMode,
+          'hasVerificationUrl': result.verificationUrl != null,
         },
       );
     } catch (error) {
@@ -153,6 +160,9 @@ class AuthSessionController extends Notifier<AuthSessionState> {
         clearSession: true,
         clearMagicLinkPreviewToken: true,
         clearMagicLinkEmail: true,
+        clearMagicLinkDelivery: true,
+        clearMagicLinkExpiresAt: true,
+        clearMagicLinkVerificationUrl: true,
         clearErrorMessage: true,
       );
       logger.sync(
@@ -204,6 +214,9 @@ class AuthSessionController extends Notifier<AuthSessionState> {
         clearErrorMessage: true,
         clearMagicLinkPreviewToken: clearMagicLinkState,
         clearMagicLinkEmail: clearMagicLinkState,
+        clearMagicLinkDelivery: clearMagicLinkState,
+        clearMagicLinkExpiresAt: clearMagicLinkState,
+        clearMagicLinkVerificationUrl: clearMagicLinkState,
       );
       logger.sync(
         feature: 'auth',

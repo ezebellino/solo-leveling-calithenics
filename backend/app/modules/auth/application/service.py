@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.logging import log_event, logger
 from app.modules.auth.domain.entities import (
-    DEFAULT_AUTH_PROVIDERS,
     AuthProviderDescriptor,
     AuthSessionRecord,
     AuthUserRecord,
@@ -50,7 +49,39 @@ def _serialize_datetime(value: datetime) -> str:
 
 
 def list_available_auth_providers() -> tuple[AuthProviderDescriptor, ...]:
-    return DEFAULT_AUTH_PROVIDERS
+    return (
+        AuthProviderDescriptor(
+            code="google",
+            display_name="Google",
+            transport="oauth",
+            availability=(
+                "development_preview"
+                if settings.auth_allow_dev_provider_bypass
+                else "disabled"
+            ),
+            status_message=(
+                "Usa bypass de desarrollo hasta integrar Google Sign-In real."
+                if settings.auth_allow_dev_provider_bypass
+                else "Google Sign-In real todavia no esta configurado en este entorno."
+            ),
+        ),
+        AuthProviderDescriptor(
+            code="magic_link",
+            display_name="Magic Link",
+            transport="email",
+            availability=(
+                "development_preview"
+                if settings.app_env in {"development", "test"}
+                else "disabled"
+            ),
+            status_message=(
+                "Entrega en modo preview para desarrollo local."
+                if settings.app_env in {"development", "test"}
+                else "La entrega real por email todavia no esta configurada en este entorno."
+            ),
+            requires_manual_completion=settings.app_env in {"development", "test"},
+        ),
+    )
 
 
 def sign_in_with_google(
@@ -113,13 +144,27 @@ def sign_in_with_google(
     return issued
 
 
-def request_magic_link(*, email: str, display_name: str | None = None) -> RequestedMagicLink:
+def request_magic_link(
+    *,
+    email: str,
+    display_name: str | None = None,
+    redirect_url: str | None = None,
+) -> RequestedMagicLink:
     normalized_email = email.strip().lower()
     if not normalized_email:
         raise AuthMagicLinkInvalidError("Email is required.")
+    preview_mode = settings.app_env in {"development", "test"}
+    if not preview_mode:
+        raise AuthProviderVerificationFailedError(
+            "Magic link delivery is not configured in this environment.",
+        )
 
     expires_at = _tokens.build_magic_link_expiry()
     verification_token = _tokens.issue_magic_link_token(email=normalized_email, expires_at=expires_at)
+    verification_url = _build_magic_link_verification_url(
+        redirect_url=redirect_url,
+        verification_token=verification_token,
+    )
     log_event(
         logger,
         "auth_magic_link_requested",
@@ -129,12 +174,15 @@ def request_magic_link(*, email: str, display_name: str | None = None) -> Reques
         result="success",
         email=normalized_email,
         requested_display_name=(display_name or "").strip() or None,
+        preview_mode=preview_mode,
     )
     return RequestedMagicLink(
         email=normalized_email,
         expires_at=expires_at,
-        delivery="accepted",
-        verification_token=verification_token if settings.app_env in {"development", "test"} else None,
+        delivery="preview" if preview_mode else "email",
+        verification_token=verification_token if preview_mode else None,
+        verification_url=verification_url,
+        preview_mode=preview_mode,
         contract_version=AUTH_CONTRACT_VERSION,
     )
 
@@ -227,6 +275,8 @@ def serialize_magic_link_request(result: RequestedMagicLink) -> dict[str, object
         "delivery": result.delivery,
         "expiresAt": _serialize_datetime(result.expires_at),
         "previewToken": result.verification_token,
+        "verificationUrl": result.verification_url,
+        "previewMode": result.preview_mode,
     }
 
 
@@ -237,6 +287,18 @@ def _serialize_user(user: AuthUserRecord) -> dict[str, object]:
         "displayName": user.display_name,
         "avatarUrl": user.avatar_url,
     }
+
+
+def _build_magic_link_verification_url(
+    *,
+    redirect_url: str | None,
+    verification_token: str,
+) -> str | None:
+    normalized_redirect = (redirect_url or "").strip()
+    if not normalized_redirect:
+        return None
+    separator = "&" if "?" in normalized_redirect else "?"
+    return f"{normalized_redirect}{separator}token={verification_token}"
 
 
 def _resolve_session_and_user(db: Session, raw_access_token: str):

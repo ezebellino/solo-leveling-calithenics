@@ -16,6 +16,9 @@ class AuthProviderDescriptor:
     code: str
     display_name: str
     transport: str
+    availability: str
+    status_message: str | None = None
+    requires_manual_completion: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +53,8 @@ class RequestedMagicLink:
     expires_at: datetime
     delivery: str
     verification_token: str | None
+    verification_url: str | None
+    preview_mode: bool
     contract_version: str
 
 
@@ -61,15 +66,4 @@ class AuthenticatedSession:
     contract_version: str
 
 
-DEFAULT_AUTH_PROVIDERS: Final[tuple[AuthProviderDescriptor, ...]] = (
-    AuthProviderDescriptor(
-        code=AuthProvider.GOOGLE.value,
-        display_name="Google",
-        transport="oauth",
-    ),
-    AuthProviderDescriptor(
-        code=AuthProvider.MAGIC_LINK.value,
-        display_name="Magic Link",
-        transport="email",
-    ),
-)
+DEFAULT_AUTH_PROVIDERS: Final[tuple[AuthProviderDescriptor, ...]] = ()

@@ -22,6 +22,7 @@ class _AuthAccessPageState extends ConsumerState<AuthAccessPage> {
   final _emailController = TextEditingController();
   final _displayNameController = TextEditingController();
   final _magicLinkTokenController = TextEditingController();
+  bool _attemptedUriVerification = false;
 
   @override
   void dispose() {
@@ -35,10 +36,24 @@ class _AuthAccessPageState extends ConsumerState<AuthAccessPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(authSessionControllerProvider);
     final controller = ref.read(authSessionControllerProvider.notifier);
+    final uriToken = Uri.base.queryParameters['token']?.trim();
 
     if (state.magicLinkPreviewToken != null &&
         _magicLinkTokenController.text.isEmpty) {
       _magicLinkTokenController.text = state.magicLinkPreviewToken!;
+    }
+    if (!_attemptedUriVerification &&
+        !state.isSubmitting &&
+        uriToken != null &&
+        uriToken.isNotEmpty &&
+        !state.isAuthenticated) {
+      _attemptedUriVerification = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        controller.verifyMagicLink(token: uriToken);
+      });
     }
 
     return Scaffold(
@@ -138,19 +153,42 @@ class _AuthAccessPageState extends ConsumerState<AuthAccessPage> {
             runSpacing: 10,
             children: state.providers
                 .map(
-                  (provider) => Chip(
-                    label: Text(provider.displayName),
-                    avatar: Icon(
-                      provider.code == 'google'
-                          ? Icons.account_circle_rounded
-                          : Icons.mark_email_unread_rounded,
-                      size: 18,
+                  (provider) => Tooltip(
+                    message: provider.statusMessage ?? provider.availability,
+                    child: Chip(
+                      label: Text(
+                        provider.requiresManualCompletion
+                            ? '${provider.displayName} · preview'
+                            : provider.displayName,
+                      ),
+                      avatar: Icon(
+                        provider.code == 'google'
+                            ? Icons.account_circle_rounded
+                            : Icons.mark_email_unread_rounded,
+                        size: 18,
+                      ),
                     ),
                   ),
                 )
                 .toList(growable: false),
           ),
           const SizedBox(height: 22),
+          ...state.providers
+              .where((provider) => provider.statusMessage != null)
+              .map(
+                (provider) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    '${provider.displayName}: ${provider.statusMessage!}',
+                    style: const TextStyle(
+                      color: Color(0xFFA8BECD),
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ),
+          const SizedBox(height: 14),
         ],
         TextField(
           controller: _displayNameController,
@@ -176,7 +214,7 @@ class _AuthAccessPageState extends ConsumerState<AuthAccessPage> {
             FilledButton.icon(
               onPressed: state.isSubmitting
                   ? null
-                  : () => controller.signInWithGooglePreview(
+                  : () => controller.signInWithGoogle(
                         email: _emailController.text.trim(),
                         displayName: _displayNameController.text.trim(),
                       ),
@@ -189,6 +227,9 @@ class _AuthAccessPageState extends ConsumerState<AuthAccessPage> {
                   : () => controller.requestMagicLink(
                         email: _emailController.text.trim(),
                         displayName: _displayNameController.text.trim(),
+                        redirectUrl: Uri.base.replace(
+                          queryParameters: <String, String>{},
+                        ).toString(),
                       ),
               icon: const Icon(Icons.mark_email_read_rounded),
               label: const Text('Solicitar Magic Link'),
@@ -223,6 +264,56 @@ class _AuthAccessPageState extends ConsumerState<AuthAccessPage> {
               color: Color(0xFFBDE8FF),
               fontSize: 13,
               height: 1.45,
+            ),
+          ),
+        ],
+        if (state.magicLinkEmail != null) ...[
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0x1A79E7FF),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _palette.primary.withValues(alpha: 0.25)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Magic link solicitado',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Email: ${state.magicLinkEmail}',
+                  style: const TextStyle(color: Color(0xFFDFF9FF)),
+                ),
+                if (state.magicLinkDelivery != null)
+                  Text(
+                    'Entrega: ${state.magicLinkDelivery}',
+                    style: const TextStyle(color: Color(0xFFA3C8D5), fontSize: 13),
+                  ),
+                if (state.magicLinkExpiresAt != null)
+                  Text(
+                    'Expira: ${state.magicLinkExpiresAt!.toLocal()}',
+                    style: const TextStyle(color: Color(0xFFA3C8D5), fontSize: 13),
+                  ),
+                if (state.magicLinkVerificationUrl != null) ...[
+                  const SizedBox(height: 10),
+                  SelectableText(
+                    'Verification URL:\n${state.magicLinkVerificationUrl!}',
+                    style: const TextStyle(
+                      color: Color(0xFFBDE8FF),
+                      fontSize: 13,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ],

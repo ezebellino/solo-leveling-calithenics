@@ -41,6 +41,9 @@ def auth_providers() -> AuthProviderListResponse:
                 code=provider.code,
                 displayName=provider.display_name,
                 transport=provider.transport,
+                availability=provider.availability,
+                statusMessage=provider.status_message,
+                requiresManualCompletion=provider.requires_manual_completion,
             )
             for provider in list_available_auth_providers()
         ],
@@ -80,6 +83,7 @@ def request_auth_magic_link(payload: AuthMagicLinkRequest) -> AuthMagicLinkReque
     result = request_magic_link(
         email=payload.email,
         display_name=payload.display_name,
+        redirect_url=payload.redirect_url,
     )
     return AuthMagicLinkRequestResponse(**serialize_magic_link_request(result))
 

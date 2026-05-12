@@ -40,7 +40,7 @@ class AuthApiClient {
         .toList(growable: false);
   }
 
-  Future<AuthSession> exchangeGooglePreview({
+  Future<AuthSession> exchangeGoogle({
     required String email,
     required String displayName,
     required String providerSubject,
@@ -67,6 +67,7 @@ class AuthApiClient {
   Future<MagicLinkRequestResult> requestMagicLink({
     required String email,
     String? displayName,
+    String? redirectUrl,
   }) async {
     final response = await _httpClient.post(
       _uri('/api/v1/auth/magic-link/request'),
@@ -74,6 +75,7 @@ class AuthApiClient {
       body: jsonEncode(<String, Object?>{
         'email': email,
         'displayName': displayName,
+        'redirectUrl': redirectUrl,
       }..removeWhere((key, value) => value == null || (value is String && value.isEmpty))),
     );
     _throwIfRequestFailed(
@@ -87,7 +89,9 @@ class AuthApiClient {
       email: email,
       expiresAt: DateTime.parse(decoded['expiresAt'] as String),
       delivery: decoded['delivery'] as String? ?? 'accepted',
+      previewMode: decoded['previewMode'] as bool? ?? false,
       previewToken: decoded['previewToken'] as String?,
+      verificationUrl: decoded['verificationUrl'] as String?,
     );
   }
 
@@ -153,6 +157,10 @@ class AuthApiClient {
       code: json['code'] as String? ?? '',
       displayName: json['displayName'] as String? ?? '',
       transport: json['transport'] as String? ?? '',
+      availability: json['availability'] as String? ?? 'unknown',
+      statusMessage: json['statusMessage'] as String?,
+      requiresManualCompletion:
+          json['requiresManualCompletion'] as bool? ?? false,
     );
   }
 

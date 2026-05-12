@@ -103,12 +103,12 @@ class AuthRepositoryImpl implements AuthSessionRepository {
   }
 
   @override
-  Future<AuthSession> signInWithGooglePreview({
+  Future<AuthSession> signInWithGoogle({
     required String email,
     required String displayName,
   }) async {
     final providerSubject = 'preview:${email.trim().toLowerCase()}';
-    final session = await _apiClient.exchangeGooglePreview(
+    final session = await _apiClient.exchangeGoogle(
       email: email,
       displayName: displayName,
       providerSubject: providerSubject,
@@ -116,7 +116,7 @@ class AuthRepositoryImpl implements AuthSessionRepository {
     await _localDataSource.saveAccessToken(session.accessToken);
     _logger.sync(
       feature: 'auth',
-      action: 'sign_in_google_preview',
+      action: 'sign_in_google',
       source: 'auth.repository',
       outcome: 'succeeded',
       entityId: session.userId,
@@ -128,10 +128,12 @@ class AuthRepositoryImpl implements AuthSessionRepository {
   Future<MagicLinkRequestResult> requestMagicLink({
     required String email,
     String? displayName,
+    String? redirectUrl,
   }) {
     return _apiClient.requestMagicLink(
       email: email,
       displayName: displayName,
+      redirectUrl: redirectUrl,
     );
   }
 

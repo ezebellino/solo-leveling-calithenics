@@ -5,6 +5,12 @@ class AuthProviderDescriptorResponse(BaseModel):
     code: str
     display_name: str = Field(alias="displayName")
     transport: str
+    availability: str
+    status_message: str | None = Field(default=None, alias="statusMessage")
+    requires_manual_completion: bool = Field(
+        default=False,
+        alias="requiresManualCompletion",
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -31,6 +37,7 @@ class AuthGoogleExchangeRequest(BaseModel):
 class AuthMagicLinkRequest(BaseModel):
     email: str
     display_name: str | None = Field(default=None, alias="displayName")
+    redirect_url: str | None = Field(default=None, alias="redirectUrl")
 
     model_config = {"populate_by_name": True}
 
@@ -70,6 +77,8 @@ class AuthMagicLinkRequestResponse(BaseModel):
     delivery: str
     expires_at: str = Field(alias="expiresAt")
     preview_token: str | None = Field(default=None, alias="previewToken")
+    verification_url: str | None = Field(default=None, alias="verificationUrl")
+    preview_mode: bool = Field(alias="previewMode")
 
     model_config = {"populate_by_name": True}
 
