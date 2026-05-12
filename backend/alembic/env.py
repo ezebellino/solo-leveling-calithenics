@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.core.database import normalize_database_url
 from app.database import Base
 from app import models  # noqa: F401
+from app.modules import register_module_models
 
 
 config = context.config
@@ -15,6 +16,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 config.set_main_option("sqlalchemy.url", normalize_database_url(settings.database_url))
+register_module_models()
 target_metadata = Base.metadata
 
 

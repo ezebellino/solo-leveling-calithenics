@@ -8,6 +8,7 @@ from app.core.errors import AppError, app_error_handler
 from app.core.logging import configure_logging
 from app.core.request_context import request_logging_middleware
 from app.modules import register_module_models
+from app.modules.auth.api.router import router as auth_router
 from app.modules.inventory.api.router import router as inventory_router
 from app.modules.player.api.router import router as player_router
 from app.modules.quests.api.router import router as quests_router
@@ -34,6 +35,7 @@ app = FastAPI(
 )
 app.add_exception_handler(AppError, app_error_handler)
 app.middleware("http")(request_logging_middleware)
+app.include_router(auth_router)
 app.include_router(inventory_router)
 app.include_router(player_router)
 app.include_router(quests_router)

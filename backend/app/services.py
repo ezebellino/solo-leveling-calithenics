@@ -7,7 +7,15 @@ from app.modules.player.infrastructure.models import reconcile_default_data, see
 
 
 def initialize_database() -> None:
-    required_tables = {"daily_quests", "inventory_items", "player_progress", "shadow_unlocks", "users"}
+    required_tables = {
+        "auth_identities",
+        "auth_sessions",
+        "daily_quests",
+        "inventory_items",
+        "player_progress",
+        "shadow_unlocks",
+        "users",
+    }
     try:
         existing_tables = set(inspect(engine).get_table_names())
     except Exception as exc:  # pragma: no cover - startup safety
