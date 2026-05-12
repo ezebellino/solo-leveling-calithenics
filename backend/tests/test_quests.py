@@ -20,13 +20,13 @@ QUEST_RESPONSE_KEYS = {
 }
 
 
-def _load_default_user_quest_ids() -> list[str]:
+def _load_default_user_quest_ids(*, email: str = "hunter@example.com") -> list[str]:
     from app.database import engine
     from app.models import User
     from app.modules.quests.infrastructure.models import DailyQuest
 
     with Session(engine) as session:
-        user = session.query(User).first()
+        user = session.query(User).filter(User.email == email).first()
         assert user is not None
         quests = (
             session.query(DailyQuest)
@@ -68,12 +68,14 @@ def _configure_quest(
         session.commit()
 
 
-def _load_progress_snapshot() -> dict[str, int]:
+def _load_progress_snapshot(*, email: str = "hunter@example.com") -> dict[str, int]:
     from app.database import engine
-    from app.models import PlayerProgress
+    from app.models import User
 
     with Session(engine) as session:
-        progress = session.query(PlayerProgress).first()
+        user = session.query(User).filter(User.email == email).first()
+        assert user is not None
+        progress = user.progress
         assert progress is not None
         return {
             "level": progress.level,
@@ -135,8 +137,8 @@ def test_importing_app_models_registers_quest_module_without_legacy_export(
     database.Base.metadata.create_all(bind=database.engine)
 
 
-def test_today_quests_contract_intact(client) -> None:
-    response = client.get("/api/v1/quests/today")
+def test_today_quests_contract_intact(client, auth_headers) -> None:
+    response = client.get("/api/v1/quests/today", headers=auth_headers)
 
     assert response.status_code == 200
     payload = response.json()
@@ -146,12 +148,12 @@ def test_today_quests_contract_intact(client) -> None:
     assert set(payload["quests"][0]) == QUEST_RESPONSE_KEYS
 
 
-def test_today_quests_returns_only_entries_for_today(client) -> None:
+def test_today_quests_returns_only_entries_for_today(client, auth_headers) -> None:
     quest_ids = _load_default_user_quest_ids()
     moved_quest_id = quest_ids[0]
     _configure_quest(moved_quest_id, quest_date=date.today() - timedelta(days=1))
 
-    response = client.get("/api/v1/quests/today")
+    response = client.get("/api/v1/quests/today", headers=auth_headers)
 
     assert response.status_code == 200
     payload = response.json()
@@ -161,11 +163,15 @@ def test_today_quests_returns_only_entries_for_today(client) -> None:
     assert len(payload["quests"]) == len(quest_ids) - 1
 
 
-def test_advance_quest_completes_and_applies_reward_once(client) -> None:
+def test_advance_quest_completes_and_applies_reward_once(client, auth_headers) -> None:
     quest_id = _load_default_user_quest_ids()[0]
     _configure_quest(quest_id, progress=0, target=2, xp_reward=120, is_completed=False)
 
-    response = client.post(f"/api/v1/quests/{quest_id}/advance", json={"amount": 2})
+    response = client.post(
+        f"/api/v1/quests/{quest_id}/advance",
+        json={"amount": 2},
+        headers=auth_headers,
+    )
 
     assert response.status_code == 200
     payload = response.json()
@@ -193,7 +199,11 @@ def test_advance_quest_completes_and_applies_reward_once(client) -> None:
         "endurance": 2,
     }
 
-    second_response = client.post(f"/api/v1/quests/{quest_id}/advance", json={"amount": 1})
+    second_response = client.post(
+        f"/api/v1/quests/{quest_id}/advance",
+        json={"amount": 1},
+        headers=auth_headers,
+    )
 
     assert second_response.status_code == 200
     assert second_response.json()["isCompleted"] is True
@@ -209,11 +219,11 @@ def test_advance_quest_completes_and_applies_reward_once(client) -> None:
     }
 
 
-def test_complete_quest_is_idempotent_and_awards_xp_once(client) -> None:
+def test_complete_quest_is_idempotent_and_awards_xp_once(client, auth_headers) -> None:
     quest_id = _load_default_user_quest_ids()[1]
     _configure_quest(quest_id, progress=1, target=3, xp_reward=90, is_completed=False)
 
-    response = client.post(f"/api/v1/quests/{quest_id}/complete")
+    response = client.post(f"/api/v1/quests/{quest_id}/complete", headers=auth_headers)
 
     assert response.status_code == 200
     payload = response.json()
@@ -241,7 +251,7 @@ def test_complete_quest_is_idempotent_and_awards_xp_once(client) -> None:
         "endurance": 1,
     }
 
-    second_response = client.post(f"/api/v1/quests/{quest_id}/complete")
+    second_response = client.post(f"/api/v1/quests/{quest_id}/complete", headers=auth_headers)
 
     assert second_response.status_code == 200
     assert second_response.json()["isCompleted"] is True
@@ -257,8 +267,12 @@ def test_complete_quest_is_idempotent_and_awards_xp_once(client) -> None:
     }
 
 
-def test_advance_quest_returns_404_for_nonexistent_quest(client) -> None:
-    response = client.post(f"/api/v1/quests/{uuid4()}/advance", json={"amount": 1})
+def test_advance_quest_returns_404_for_nonexistent_quest(client, auth_headers) -> None:
+    response = client.post(
+        f"/api/v1/quests/{uuid4()}/advance",
+        json={"amount": 1},
+        headers=auth_headers,
+    )
 
     assert response.status_code == 404
     payload = response.json()
@@ -272,11 +286,15 @@ def test_advance_quest_returns_404_for_nonexistent_quest(client) -> None:
     }
 
 
-def test_advance_quest_returns_404_for_stale_quest(client) -> None:
+def test_advance_quest_returns_404_for_stale_quest(client, auth_headers) -> None:
     quest_id = _load_default_user_quest_ids()[0]
     _configure_quest(quest_id, quest_date=date.today() - timedelta(days=1))
 
-    response = client.post(f"/api/v1/quests/{quest_id}/advance", json={"amount": 1})
+    response = client.post(
+        f"/api/v1/quests/{quest_id}/advance",
+        json={"amount": 1},
+        headers=auth_headers,
+    )
 
     assert response.status_code == 404
     payload = response.json()
@@ -290,8 +308,8 @@ def test_advance_quest_returns_404_for_stale_quest(client) -> None:
     }
 
 
-def test_complete_quest_returns_404_for_nonexistent_quest(client) -> None:
-    response = client.post(f"/api/v1/quests/{uuid4()}/complete")
+def test_complete_quest_returns_404_for_nonexistent_quest(client, auth_headers) -> None:
+    response = client.post(f"/api/v1/quests/{uuid4()}/complete", headers=auth_headers)
 
     assert response.status_code == 404
     payload = response.json()
@@ -305,11 +323,11 @@ def test_complete_quest_returns_404_for_nonexistent_quest(client) -> None:
     }
 
 
-def test_complete_quest_returns_404_for_stale_quest(client) -> None:
+def test_complete_quest_returns_404_for_stale_quest(client, auth_headers) -> None:
     quest_id = _load_default_user_quest_ids()[0]
     _configure_quest(quest_id, quest_date=date.today() - timedelta(days=1))
 
-    response = client.post(f"/api/v1/quests/{quest_id}/complete")
+    response = client.post(f"/api/v1/quests/{quest_id}/complete", headers=auth_headers)
 
     assert response.status_code == 404
     payload = response.json()
@@ -323,10 +341,14 @@ def test_complete_quest_returns_404_for_stale_quest(client) -> None:
     }
 
 
-def test_advance_quest_rejects_non_positive_amount(client) -> None:
+def test_advance_quest_rejects_non_positive_amount(client, auth_headers) -> None:
     quest_id = _load_default_user_quest_ids()[0]
 
-    response = client.post(f"/api/v1/quests/{quest_id}/advance", json={"amount": 0})
+    response = client.post(
+        f"/api/v1/quests/{quest_id}/advance",
+        json={"amount": 0},
+        headers=auth_headers,
+    )
 
     assert response.status_code == 400
     payload = response.json()

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../home/data/local_player_state_repository.dart';
+import '../../home/domain/player_state.dart';
 import '../domain/player_bootstrap_result.dart';
 import '../domain/player_snapshot.dart';
 
@@ -29,6 +30,10 @@ class PlayerLocalDataSource {
     }
 
     return _loadLegacySnapshot();
+  }
+
+  Future<PlayerState?> loadLegacyPlayerState() {
+    return _storage.load();
   }
 
   Future<void> saveSnapshot(

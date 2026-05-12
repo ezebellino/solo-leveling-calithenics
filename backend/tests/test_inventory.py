@@ -8,8 +8,8 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 
-def test_inventory_endpoint_returns_default_inventory(client) -> None:
-    response = client.get("/api/v1/inventory")
+def test_inventory_endpoint_returns_default_inventory(client, auth_headers) -> None:
+    response = client.get("/api/v1/inventory", headers=auth_headers)
 
     assert response.status_code == 200
     assert response.json() == {
@@ -27,12 +27,14 @@ def test_inventory_endpoint_returns_default_inventory(client) -> None:
     }
 
 
-def test_inventory_application_service_lists_default_user_inventory(client) -> None:
+def test_inventory_application_service_lists_default_user_inventory(client, auth_headers) -> None:
     database = importlib.import_module("app.database")
     service = importlib.import_module("app.modules.inventory.application.service")
+    player_models = importlib.import_module("app.modules.player.infrastructure.models")
 
     with Session(database.engine) as session:
-        inventory = service.list_default_user_inventory(session)
+        user = session.query(player_models.User).filter_by(email="hunter@example.com").one()
+        inventory = service.list_default_user_inventory(session, current_user=user)
 
     assert [asdict(item) for item in inventory] == [
         {"code": "streak_freeze", "name": "Freeze de racha", "quantity": 0},
@@ -71,7 +73,8 @@ def test_importing_app_models_registers_inventory_relationships(tmp_path, monkey
 
     with Session(database.engine) as session:
         models.seed_default_data(session)
-        inventory = service.list_default_user_inventory(session)
+        user = session.query(models.User).one()
+        inventory = service.list_default_user_inventory(session, current_user=user)
 
         assert [item.code for item in inventory] == [
             "streak_freeze",
@@ -80,7 +83,7 @@ def test_importing_app_models_registers_inventory_relationships(tmp_path, monkey
         ]
 
 
-def test_inventory_sync_endpoint_reconciles_quantities(client) -> None:
+def test_inventory_sync_endpoint_reconciles_quantities(client, auth_headers) -> None:
     response = client.patch(
         "/api/v1/inventory/sync",
         json={
@@ -90,6 +93,7 @@ def test_inventory_sync_endpoint_reconciles_quantities(client) -> None:
                 {"code": "quest_reroll", "quantity": 0},
             ],
         },
+        headers=auth_headers,
     )
 
     assert response.status_code == 200

@@ -10,8 +10,8 @@ class ShadowsRepository:
     def __init__(self, player_repository: PlayerRepository | None = None) -> None:
         self._player_repository = player_repository or PlayerRepository()
 
-    def list_default_user_shadow_unlocks(self, session: Session) -> list[ShadowUnlock]:
-        user = self._player_repository.get_default_user(session)
+    def list_user_shadow_unlocks(self, session: Session, user_id: str) -> list[ShadowUnlock]:
+        user = self._player_repository.get_user(session, user_id)
         try:
             return (
                 session.query(ShadowUnlock)
@@ -26,8 +26,8 @@ class ShadowsRepository:
             )
             return []
 
-    def get_default_user_shadow_army_count(self, session: Session) -> int:
-        user = self._player_repository.get_default_user(session)
+    def get_user_shadow_army_count(self, session: Session, user_id: str) -> int:
+        user = self._player_repository.get_user(session, user_id)
         progress = user.progress
         if progress is None:
             raise RuntimeError("El jugador no tiene progreso asociado.")
@@ -46,15 +46,16 @@ class ShadowsRepository:
             unlock_count = 0
         return max(progress.shadow_army, unlock_count)
 
-    def reconcile_default_user_shadow_progression(
+    def reconcile_user_shadow_progression(
         self,
         session: Session,
         *,
+        user_id: str,
         shadow_army: int,
         keep_shadow_codes: set[str],
         create_unlocks: list[ShadowUnlock],
     ):
-        user = self._player_repository.get_default_user(session)
+        user = self._player_repository.get_user(session, user_id)
         progress = user.progress
         if progress is None:
             raise RuntimeError("El jugador no tiene progreso asociado.")
@@ -77,6 +78,6 @@ class ShadowsRepository:
                 self.unlocked_shadows = unlocked_shadows
 
         return _Progression(
-            shadow_army=self.get_default_user_shadow_army_count(session),
-            unlocked_shadows=self.list_default_user_shadow_unlocks(session),
+            shadow_army=self.get_user_shadow_army_count(session, user.id),
+            unlocked_shadows=self.list_user_shadow_unlocks(session, user.id),
         )

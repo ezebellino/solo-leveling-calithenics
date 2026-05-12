@@ -46,6 +46,7 @@ class RemoteCoreSnapshot {
 class HomeApiClient {
   HomeApiClient({
     required this.baseUrl,
+    this.accessToken,
     http.Client? httpClient,
     PlayerApiClient? playerApiClient,
     LocalPlayerStateRepository? storage,
@@ -60,6 +61,7 @@ class HomeApiClient {
         _injectedShadowProgressionRepository = shadowProgressionRepository;
 
   final String baseUrl;
+  final String? accessToken;
   final http.Client _httpClient;
   final PlayerApiClient? _injectedPlayerApiClient;
   final LocalPlayerStateRepository? _storage;
@@ -72,10 +74,19 @@ class HomeApiClient {
 
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
+  Map<String, String> get _authHeaders {
+    final token = accessToken;
+    if (token == null || token.isEmpty) {
+      return const <String, String>{};
+    }
+    return <String, String>{'Authorization': 'Bearer $token'};
+  }
+
   PlayerApiClient get _playerApiClient {
     return _injectedPlayerApiClient ??
         (_ownedPlayerApiClient ??= PlayerApiClient(
           baseUrl: baseUrl,
+          accessToken: accessToken,
           httpClient: _httpClient,
           disposeHttpClient: false,
         ));
@@ -96,6 +107,7 @@ class HomeApiClient {
       baseUrl: baseUrl,
       logger: logger,
       storage: storage,
+      accessToken: accessToken,
       httpClient: _httpClient,
     );
   }
@@ -115,6 +127,7 @@ class HomeApiClient {
       baseUrl: baseUrl,
       logger: logger,
       storage: storage,
+      accessToken: accessToken,
       httpClient: _httpClient,
     );
   }
@@ -138,7 +151,10 @@ class HomeApiClient {
 
   Future<RemoteCoreSnapshot> fetchCoreSnapshot() async {
     final playerJson = await _playerApiClient.fetchPlayerJson();
-    final questsResponse = await _httpClient.get(_uri('/api/v1/quests/today'));
+    final questsResponse = await _httpClient.get(
+      _uri('/api/v1/quests/today'),
+      headers: _authHeaders,
+    );
 
     if (questsResponse.statusCode != 200) {
       throw Exception('No se pudieron obtener las quests remotas.');
@@ -166,7 +182,7 @@ class HomeApiClient {
   Future<void> advanceQuest(String questId, {int amount = 1}) async {
     final response = await _httpClient.post(
       _uri('/api/v1/quests/$questId/advance'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {'Content-Type': 'application/json', ..._authHeaders},
       body: jsonEncode({'amount': amount}),
     );
 
@@ -178,7 +194,10 @@ class HomeApiClient {
   }
 
   Future<void> completeQuest(String questId) async {
-    final response = await _httpClient.post(_uri('/api/v1/quests/$questId/complete'));
+    final response = await _httpClient.post(
+      _uri('/api/v1/quests/$questId/complete'),
+      headers: _authHeaders,
+    );
     _throwIfRequestFailed(
       response,
       fallbackCode: 'quest_complete_failed',

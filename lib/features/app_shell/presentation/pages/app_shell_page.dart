@@ -20,6 +20,9 @@ import '../../../inventory/application/inventory_controller.dart';
 import '../../../inventory/application/inventory_sync_coordinator.dart';
 import '../../../inventory/data/inventory_repository.dart';
 import '../../../inventory/presentation/widgets/chest_reward_overlay.dart';
+import '../../../auth/application/auth_session_controller.dart';
+import '../../../auth/application/attach_local_progress_use_case.dart';
+import '../../../player/data/player_api_client.dart';
 import '../../../player/application/bootstrap_player_controller.dart';
 import '../../../player/application/bootstrap_player_state.dart';
 import '../../../player/domain/player_bootstrap_result.dart';
@@ -401,21 +404,48 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
   }
 
   Future<void> _initializeHomeController(PlayerBootstrapResult result) async {
+    final accessToken = ref.read(currentAuthAccessTokenProvider);
+    final playerApiClient = PlayerApiClient(
+      baseUrl: ref.read(apiBaseUrlProvider),
+      accessToken: accessToken,
+      disposeHttpClient: true,
+    );
     final inventoryRepository = InventoryRepository.create(
       baseUrl: ref.read(apiBaseUrlProvider),
       logger: _logger,
       storage: _storage,
+      accessToken: accessToken,
     );
     final shadowProgressionRepository = ShadowProgressionRepository.create(
       baseUrl: ref.read(apiBaseUrlProvider),
       logger: _logger,
       storage: _storage,
+      accessToken: accessToken,
     );
+    final attachLocalProgressUseCase = AttachLocalProgressUseCase(
+      storage: _storage,
+      playerApiClient: playerApiClient,
+      inventoryRepository: inventoryRepository,
+      shadowProgressionRepository: shadowProgressionRepository,
+      logger: _logger,
+    );
+    final attachedSnapshot = await attachLocalProgressUseCase.attachIfNeeded(
+      result,
+    );
+    playerApiClient.dispose();
+    final effectiveBootstrapResult = attachedSnapshot == null
+        ? result
+        : PlayerBootstrapResult(
+            snapshot: attachedSnapshot,
+            source: result.source,
+            contractVersion: result.contractVersion,
+          );
     final controller = HomeController(
       storage: _storage,
       system: _system,
       apiClient: HomeApiClient(
         baseUrl: ref.read(apiBaseUrlProvider),
+        accessToken: accessToken,
         storage: _storage,
         logger: _logger,
         inventoryRepository: inventoryRepository,
@@ -435,7 +465,7 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
     });
 
     try {
-      await controller.load(bootstrapSnapshot: result.snapshot);
+      await controller.load(bootstrapSnapshot: effectiveBootstrapResult.snapshot);
       if (!mounted) {
         return;
       }
@@ -446,8 +476,8 @@ class _AppShellPageState extends ConsumerState<AppShellPage> {
         source: 'app_shell.page',
         context: <String, Object?>{
           'error': error.toString(),
-          'selectedSource': result.source.code,
-          'contractVersion': result.contractVersion,
+          'selectedSource': effectiveBootstrapResult.source.code,
+          'contractVersion': effectiveBootstrapResult.contractVersion,
         },
       );
       controller.dispose();

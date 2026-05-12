@@ -5,6 +5,7 @@ from app.modules.inventory.api.schemas import InventorySyncContractResponse
 from app.modules.inventory.domain.entities import InventoryItemView
 from app.modules.inventory.infrastructure.models import InventoryItem
 from app.modules.inventory.infrastructure.repository import InventoryRepository
+from app.modules.player.infrastructure.models import User
 
 INVENTORY_CONTRACT_VERSION = "2026-05-11.inventory.v1"
 INVENTORY_DURABLE_FIELDS = [
@@ -19,6 +20,8 @@ def _to_view(item: InventoryItem) -> InventoryItemView:
 
 def list_default_user_inventory(
     session: Session,
+    *,
+    current_user: User,
     repository: InventoryRepository | None = None,
 ) -> list[InventoryItemView]:
     log_event(
@@ -30,7 +33,7 @@ def list_default_user_inventory(
         result="started",
     )
     repo = repository or InventoryRepository()
-    items = repo.list_default_user_inventory(session)
+    items = repo.list_user_inventory(session, current_user.id)
     log_event(
         logger,
         "inventory_read_succeeded",
@@ -55,6 +58,8 @@ def build_inventory_sync_contract() -> InventorySyncContractResponse:
 def reconcile_default_user_inventory(
     session: Session,
     quantities: dict[str, int],
+    *,
+    current_user: User,
     repository: InventoryRepository | None = None,
 ) -> list[InventoryItemView]:
     log_event(
@@ -67,7 +72,11 @@ def reconcile_default_user_inventory(
         item_count=len(quantities),
     )
     repo = repository or InventoryRepository()
-    items = repo.reconcile_default_user_inventory(session, quantities=quantities)
+    items = repo.reconcile_user_inventory(
+        session,
+        user_id=current_user.id,
+        quantities=quantities,
+    )
     log_event(
         logger,
         "inventory_sync_succeeded",

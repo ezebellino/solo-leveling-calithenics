@@ -9,14 +9,14 @@ from app.modules.inventory.infrastructure.models import InventoryItem
 
 
 class InventoryRepository:
-    def get_default_user(self, session: Session) -> User:
-        user = session.query(User).first()
+    def get_user(self, session: Session, user_id: str) -> User:
+        user = session.get(User, user_id)
         if user is None or user.progress is None:
-            raise RuntimeError("No se pudo inicializar el jugador base.")
+            raise RuntimeError("No se pudo resolver el inventario del usuario autenticado.")
         return user
 
-    def list_default_user_inventory(self, session: Session) -> list[InventoryItem]:
-        user = self.get_default_user(session)
+    def list_user_inventory(self, session: Session, user_id: str) -> list[InventoryItem]:
+        user = self.get_user(session, user_id)
         items = (
             session.query(InventoryItem)
             .filter(InventoryItem.user_id == user.id)
@@ -25,13 +25,14 @@ class InventoryRepository:
         order_map = {code: index for index, code in enumerate(DEFAULT_INVENTORY_CODES)}
         return sorted(items, key=lambda item: order_map.get(item.code, len(order_map)))
 
-    def reconcile_default_user_inventory(
+    def reconcile_user_inventory(
         self,
         session: Session,
         *,
+        user_id: str,
         quantities: dict[str, int],
     ) -> list[InventoryItem]:
-        user = self.get_default_user(session)
+        user = self.get_user(session, user_id)
         items = (
             session.query(InventoryItem)
             .filter(InventoryItem.user_id == user.id)
@@ -53,4 +54,4 @@ class InventoryRepository:
             item.quantity = max(0, quantities.get(code, 0))
 
         session.commit()
-        return self.list_default_user_inventory(session)
+        return self.list_user_inventory(session, user.id)

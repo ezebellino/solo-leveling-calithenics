@@ -19,10 +19,12 @@ class ShadowProgressionRepository {
     required String baseUrl,
     required AppLogger logger,
     required LocalPlayerStateRepository storage,
+    String? accessToken,
     http.Client? httpClient,
   }) {
     final apiClient = ShadowProgressionApiClient(
       baseUrl: baseUrl,
+      accessToken: accessToken,
       httpClient: httpClient,
       disposeHttpClient: false,
     );

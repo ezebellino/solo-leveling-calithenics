@@ -38,3 +38,20 @@ def client(tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) ->
 
     with TestClient(main.app) as test_client:
         yield test_client
+
+
+@pytest.fixture()
+def auth_headers(client: TestClient) -> dict[str, str]:
+    response = client.post(
+        "/api/v1/auth/google",
+        json={
+            "idToken": "dev-google-token",
+            "email": "hunter@example.com",
+            "displayName": "Hunter",
+            "providerSubject": "google-subject-test",
+            "avatarUrl": "",
+        },
+    )
+    assert response.status_code == 200
+    access_token = response.json()["accessToken"]
+    return {"Authorization": f"Bearer {access_token}"}

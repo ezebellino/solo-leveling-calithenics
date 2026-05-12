@@ -17,6 +17,7 @@ from app.modules.quests.domain.progression import (
 )
 from app.modules.quests.infrastructure.models import DailyQuest
 from app.modules.quests.infrastructure.repository import QuestRepository
+from app.modules.player.infrastructure.models import User
 
 
 def _serialize_quest(quest: DailyQuest) -> DailyQuestResponse:
@@ -70,11 +71,17 @@ def _apply_completion_side_effects(quest: DailyQuest) -> None:
 
 def _get_quest_or_404(
     session: Session,
+    current_user: User,
     quest_id: str,
     repository: QuestRepository,
     today: date,
 ) -> DailyQuest:
-    quest = repository.get_quest_for_default_user(session, quest_id, quest_date=today)
+    quest = repository.get_quest_for_user(
+        session,
+        current_user.id,
+        quest_id,
+        quest_date=today,
+    )
     if quest is None:
         raise QuestNotFoundError()
     return quest
@@ -82,16 +89,20 @@ def _get_quest_or_404(
 
 def get_today_quests(
     session: Session,
+    *,
+    current_user: User,
     repository: QuestRepository | None = None,
     today: date | None = None,
 ) -> QuestListResponse:
     repo = repository or QuestRepository()
-    quests = repo.list_today_quests(session, today or date.today())
+    quests = repo.list_today_quests(session, current_user.id, today or date.today())
     return QuestListResponse(quests=[_serialize_quest(quest) for quest in quests])
 
 
 def advance_quest(
     session: Session,
+    *,
+    current_user: User,
     quest_id: str,
     amount: int,
     repository: QuestRepository | None = None,
@@ -101,7 +112,7 @@ def advance_quest(
         raise InvalidQuestAdvanceError()
 
     repo = repository or QuestRepository()
-    quest = _get_quest_or_404(session, quest_id, repo, today or date.today())
+    quest = _get_quest_or_404(session, current_user, quest_id, repo, today or date.today())
     outcome = advance_quest_state(_build_quest_state(quest), amount)
 
     quest.progress = outcome.state.progress
@@ -116,12 +127,14 @@ def advance_quest(
 
 def complete_quest(
     session: Session,
+    *,
+    current_user: User,
     quest_id: str,
     repository: QuestRepository | None = None,
     today: date | None = None,
 ) -> DailyQuestResponse:
     repo = repository or QuestRepository()
-    quest = _get_quest_or_404(session, quest_id, repo, today or date.today())
+    quest = _get_quest_or_404(session, current_user, quest_id, repo, today or date.today())
     outcome = complete_quest_state(_build_quest_state(quest))
 
     quest.progress = outcome.state.progress

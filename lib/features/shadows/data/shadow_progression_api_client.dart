@@ -21,19 +21,32 @@ class ShadowProgressionApiClient {
 
   ShadowProgressionApiClient({
     required this.baseUrl,
+    this.accessToken,
     http.Client? httpClient,
     bool disposeHttpClient = true,
   })  : _httpClient = httpClient ?? http.Client(),
         _disposeHttpClient = httpClient == null ? true : disposeHttpClient;
 
   final String baseUrl;
+  final String? accessToken;
   final http.Client _httpClient;
   final bool _disposeHttpClient;
 
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
+  Map<String, String> get _authHeaders {
+    final token = accessToken;
+    if (token == null || token.isEmpty) {
+      return const <String, String>{};
+    }
+    return <String, String>{'Authorization': 'Bearer $token'};
+  }
+
   Future<ShadowProgressionRemoteSnapshot> fetchProgression() async {
-    final response = await _httpClient.get(_uri('/api/v1/shadows/progression'));
+    final response = await _httpClient.get(
+      _uri('/api/v1/shadows/progression'),
+      headers: _authHeaders,
+    );
     final json = _decodeObjectResponse(
       response,
       fallbackCode: 'shadow_refresh_failed',
@@ -48,7 +61,10 @@ class ShadowProgressionApiClient {
   }) async {
     final response = await _httpClient.patch(
       _uri('/api/v1/shadows/progression'),
-      headers: const <String, String>{'Content-Type': 'application/json'},
+      headers: <String, String>{
+        'Content-Type': 'application/json',
+        ..._authHeaders,
+      },
       body: jsonEncode(<String, Object?>{
         'shadowArmy': shadowArmy,
         'unlockedShadowIds': unlockedShadowIds,

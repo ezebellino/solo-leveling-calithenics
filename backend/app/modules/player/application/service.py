@@ -108,11 +108,13 @@ def _build_bootstrap_sync_contract() -> BootstrapSyncContractResponse:
 
 def get_player_bootstrap(
     session: Session,
+    *,
+    current_user: User,
     repository: PlayerRepository | None = None,
 ) -> BootstrapResponse:
     repo = repository or PlayerRepository()
-    user = repo.get_default_user(session)
-    shadow_army_count = get_default_user_shadow_army_count(session)
+    user = repo.get_user(session, current_user.id)
+    shadow_army_count = get_default_user_shadow_army_count(session, current_user=current_user)
     return BootstrapResponse(
         player=_serialize_player(user, shadow_army_count),
         stage=_serialize_stage(user),
@@ -128,19 +130,21 @@ def get_player_bootstrap(
 
 def get_player_overview(
     session: Session,
+    *,
+    current_user: User,
     repository: PlayerRepository | None = None,
 ) -> PlayerOverviewResponse:
     repo = repository or PlayerRepository()
-    user = repo.get_default_user(session)
+    user = repo.get_user(session, current_user.id)
     progress = user.progress
     if progress is None:
         raise RuntimeError("El jugador no tiene progreso asociado.")
-    shadow_army_count = get_default_user_shadow_army_count(session)
+    shadow_army_count = get_default_user_shadow_army_count(session, current_user=current_user)
 
     return PlayerOverviewResponse(
         player=_serialize_player(user, shadow_army_count),
         stage=_serialize_stage(user),
-        inventory=_serialize_inventory(list_default_user_inventory(session)),
+        inventory=_serialize_inventory(list_default_user_inventory(session, current_user=current_user)),
         completedDays=progress.completed_days,
     )
 
@@ -148,10 +152,12 @@ def get_player_overview(
 def update_player_progress(
     session: Session,
     payload: UpdatePlayerProgressRequest,
+    *,
+    current_user: User,
     repository: PlayerRepository | None = None,
 ) -> PlayerOverviewResponse:
     repo = repository or PlayerRepository()
-    user = repo.get_default_user(session)
+    user = repo.get_user(session, current_user.id)
     progress = user.progress
     if progress is None:
         raise RuntimeError("El jugador no tiene progreso asociado.")
@@ -161,7 +167,7 @@ def update_player_progress(
     _apply_progress_updates(progress, payload)
     repo.save(session)
     session.refresh(user)
-    return get_player_overview(session, repository=repo)
+    return get_player_overview(session, current_user=current_user, repository=repo)
 
 
 def _validate_progress_payload(payload: UpdatePlayerProgressRequest) -> None:

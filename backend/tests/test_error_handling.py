@@ -4,8 +4,12 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 
-def test_invalid_progress_update_returns_structured_app_error(client) -> None:
-    response = client.patch("/api/v1/player/progress", json={"completedDays": -1})
+def test_invalid_progress_update_returns_structured_app_error(client, auth_headers) -> None:
+    response = client.patch(
+        "/api/v1/player/progress",
+        json={"completedDays": -1},
+        headers=auth_headers,
+    )
 
     assert response.status_code == 400
     payload = response.json()

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 
-def test_bootstrap_returns_player_stage_and_feature_flags(client) -> None:
-    response = client.get("/api/v1/bootstrap")
+def test_bootstrap_returns_player_stage_and_feature_flags(client, auth_headers) -> None:
+    response = client.get("/api/v1/bootstrap", headers=auth_headers)
 
     assert response.status_code == 200
     payload = response.json()
@@ -19,8 +19,8 @@ def test_bootstrap_returns_player_stage_and_feature_flags(client) -> None:
     assert "nextLevelXp" in payload["player"]
 
 
-def test_player_overview_returns_inventory_and_completed_days(client) -> None:
-    response = client.get("/api/v1/player")
+def test_player_overview_returns_inventory_and_completed_days(client, auth_headers) -> None:
+    response = client.get("/api/v1/player", headers=auth_headers)
 
     assert response.status_code == 200
     payload = response.json()

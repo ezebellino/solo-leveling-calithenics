@@ -7,6 +7,7 @@ from app.modules.shadows.api.schemas import ShadowSyncContractResponse
 from app.modules.shadows.domain.entities import ShadowProgressionView, ShadowUnlockView
 from app.modules.shadows.infrastructure.models import ShadowUnlock
 from app.modules.shadows.infrastructure.repository import ShadowsRepository
+from app.modules.player.infrastructure.models import User
 
 SHADOWS_CONTRACT_VERSION = "2026-05-11.shadows.v1"
 SHADOWS_DURABLE_FIELDS = [
@@ -25,6 +26,8 @@ def _to_view(shadow_unlock: ShadowUnlock) -> ShadowUnlockView:
 
 def get_default_user_shadow_progression(
     session: Session,
+    *,
+    current_user: User,
     repository: ShadowsRepository | None = None,
 ) -> ShadowProgressionView:
     log_event(
@@ -36,9 +39,9 @@ def get_default_user_shadow_progression(
         result="started",
     )
     repo = repository or ShadowsRepository()
-    unlocks = repo.list_default_user_shadow_unlocks(session)
+    unlocks = repo.list_user_shadow_unlocks(session, current_user.id)
     progression = ShadowProgressionView(
-        shadow_army=repo.get_default_user_shadow_army_count(session),
+        shadow_army=repo.get_user_shadow_army_count(session, current_user.id),
         unlocked_shadows=[_to_view(item) for item in unlocks],
     )
     log_event(
@@ -56,10 +59,12 @@ def get_default_user_shadow_progression(
 
 def get_default_user_shadow_army_count(
     session: Session,
+    *,
+    current_user: User,
     repository: ShadowsRepository | None = None,
 ) -> int:
     repo = repository or ShadowsRepository()
-    return repo.get_default_user_shadow_army_count(session)
+    return repo.get_user_shadow_army_count(session, current_user.id)
 
 
 def build_shadow_sync_contract() -> ShadowSyncContractResponse:
@@ -74,6 +79,7 @@ def build_shadow_sync_contract() -> ShadowSyncContractResponse:
 def reconcile_default_user_shadow_progression(
     session: Session,
     *,
+    current_user: User,
     shadow_army: int,
     unlocked_shadow_ids: list[str],
     repository: ShadowsRepository | None = None,
@@ -89,7 +95,7 @@ def reconcile_default_user_shadow_progression(
         requested_unlock_count=len(unlocked_shadow_ids),
     )
     repo = repository or ShadowsRepository()
-    existing_unlocks = repo.list_default_user_shadow_unlocks(session)
+    existing_unlocks = repo.list_user_shadow_unlocks(session, current_user.id)
     existing_by_code = {unlock.code: unlock for unlock in existing_unlocks}
     requested_codes = set(unlocked_shadow_ids)
     created_unlocks: list[ShadowUnlock] = []
@@ -105,8 +111,9 @@ def reconcile_default_user_shadow_progression(
             ),
         )
 
-    progression = repo.reconcile_default_user_shadow_progression(
+    progression = repo.reconcile_user_shadow_progression(
         session,
+        user_id=current_user.id,
         shadow_army=shadow_army,
         keep_shadow_codes=requested_codes,
         create_unlocks=created_unlocks,
