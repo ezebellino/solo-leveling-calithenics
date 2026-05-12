@@ -20,6 +20,97 @@ def test_auth_providers_endpoint_contract(client) -> None:
     }
 
 
+def test_google_exchange_issues_backend_session_in_test_mode(client) -> None:
+    response = client.post(
+        "/api/v1/auth/google",
+        json={
+            "idToken": "dev-google-token",
+            "email": "auth@example.com",
+            "displayName": "Auth User",
+            "providerSubject": "google-subject-001",
+            "avatarUrl": "https://example.com/avatar.png",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["provider"] == "google"
+    assert payload["accessToken"]
+    assert payload["user"]["email"] == "auth@example.com"
+    assert payload["user"]["displayName"] == "Auth User"
+
+    session_response = client.get(
+        "/api/v1/auth/session",
+        headers={"Authorization": f"Bearer {payload['accessToken']}"},
+    )
+    assert session_response.status_code == 200
+    session_payload = session_response.json()
+    assert session_payload["provider"] == "google"
+    assert session_payload["user"]["email"] == "auth@example.com"
+
+
+def test_magic_link_request_and_verify_issue_backend_session(client) -> None:
+    request_response = client.post(
+        "/api/v1/auth/magic-link/request",
+        json={
+            "email": "magic@example.com",
+            "displayName": "Magic User",
+        },
+    )
+
+    assert request_response.status_code == 200
+    request_payload = request_response.json()
+    assert request_payload["delivery"] == "accepted"
+    assert request_payload["previewToken"]
+
+    verify_response = client.post(
+        "/api/v1/auth/magic-link/verify",
+        json={"token": request_payload["previewToken"]},
+    )
+
+    assert verify_response.status_code == 200
+    verify_payload = verify_response.json()
+    assert verify_payload["provider"] == "magic_link"
+    assert verify_payload["user"]["email"] == "magic@example.com"
+
+
+def test_auth_session_requires_bearer_token(client) -> None:
+    response = client.get("/api/v1/auth/session")
+
+    assert response.status_code == 401
+    payload = response.json()
+    assert payload["error"]["code"] == "auth_unauthorized"
+    assert payload["error"]["requestId"] == response.headers["X-Request-Id"]
+
+
+def test_logout_revokes_session(client) -> None:
+    auth_response = client.post(
+        "/api/v1/auth/google",
+        json={
+            "idToken": "dev-google-token",
+            "email": "logout@example.com",
+            "displayName": "Logout User",
+            "providerSubject": "google-subject-logout",
+            "avatarUrl": "",
+        },
+    )
+    access_token = auth_response.json()["accessToken"]
+
+    logout_response = client.post(
+        "/api/v1/auth/logout",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    assert logout_response.status_code == 200
+    assert logout_response.json() == {"status": "signed_out"}
+
+    session_response = client.get(
+        "/api/v1/auth/session",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    assert session_response.status_code == 401
+    assert session_response.json()["error"]["code"] == "auth_unauthorized"
+
+
 def test_auth_tables_are_registered(client) -> None:
     database = importlib.import_module("app.database")
 

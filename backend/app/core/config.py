@@ -20,6 +20,26 @@ class Settings(BaseSettings):
     )
     db_echo: bool = Field(default=False, validation_alias="DB_ECHO")
     log_level: str = Field(default="INFO", validation_alias="LOG_LEVEL")
+    auth_token_secret: str = Field(
+        default="solo-leveling-dev-auth-secret",
+        validation_alias="AUTH_TOKEN_SECRET",
+    )
+    auth_token_issuer: str = Field(
+        default="solo-leveling-api",
+        validation_alias="AUTH_TOKEN_ISSUER",
+    )
+    auth_session_ttl_minutes: int = Field(
+        default=60 * 24 * 7,
+        validation_alias="AUTH_SESSION_TTL_MINUTES",
+    )
+    auth_magic_link_ttl_minutes: int = Field(
+        default=15,
+        validation_alias="AUTH_MAGIC_LINK_TTL_MINUTES",
+    )
+    auth_allow_dev_provider_bypass: bool = Field(
+        default=True,
+        validation_alias="AUTH_ALLOW_DEV_PROVIDER_BYPASS",
+    )
 
 
 settings = Settings()

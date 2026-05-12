@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from typing import Final
 
@@ -18,17 +19,46 @@ class AuthProviderDescriptor:
 
 
 @dataclass(frozen=True, slots=True)
-class AuthIdentityRecord:
-    provider: str
-    provider_subject: str
-    email_at_provider: str | None
+class AuthUserRecord:
+    id: str
+    email: str | None
+    display_name: str
+    avatar_url: str
 
 
 @dataclass(frozen=True, slots=True)
 class AuthSessionRecord:
     session_id: str
-    provider: str
+    expires_at: datetime
+    revoked_at: datetime | None
     is_active: bool
+
+
+@dataclass(frozen=True, slots=True)
+class IssuedAuthSession:
+    access_token: str
+    expires_at: datetime
+    provider: str
+    user: AuthUserRecord
+    session: AuthSessionRecord
+    contract_version: str
+
+
+@dataclass(frozen=True, slots=True)
+class RequestedMagicLink:
+    email: str
+    expires_at: datetime
+    delivery: str
+    verification_token: str | None
+    contract_version: str
+
+
+@dataclass(frozen=True, slots=True)
+class AuthenticatedSession:
+    provider: str
+    user: AuthUserRecord
+    session: AuthSessionRecord
+    contract_version: str
 
 
 DEFAULT_AUTH_PROVIDERS: Final[tuple[AuthProviderDescriptor, ...]] = (

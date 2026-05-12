@@ -53,3 +53,12 @@ class AuthMagicLinkExpiredError(AppError):
             message=message,
             status_code=400,
         )
+
+
+class AuthInvalidCredentialsError(AppError):
+    def __init__(self, message: str = "Invalid authentication credentials."):
+        super().__init__(
+            code="auth_invalid_credentials",
+            message=message,
+            status_code=401,
+        )
