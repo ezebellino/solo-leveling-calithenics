@@ -24,17 +24,6 @@ class _AuthAccessPageState extends ConsumerState<AuthAccessPage> {
   final _magicLinkTokenController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-      ref.read(authSessionControllerProvider.notifier).initialize();
-    });
-  }
-
-  @override
   void dispose() {
     _emailController.dispose();
     _displayNameController.dispose();

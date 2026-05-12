@@ -7,16 +7,26 @@ class PlayerApiClient {
 
   PlayerApiClient({
     required this.baseUrl,
+    this.accessToken,
     http.Client? httpClient,
     bool disposeHttpClient = true,
   })  : _httpClient = httpClient ?? http.Client(),
         _disposeHttpClient = httpClient == null ? true : disposeHttpClient;
 
   final String baseUrl;
+  final String? accessToken;
   final http.Client _httpClient;
   final bool _disposeHttpClient;
 
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
+
+  Map<String, String> get _authHeaders {
+    final token = accessToken;
+    if (token == null || token.isEmpty) {
+      return const <String, String>{};
+    }
+    return <String, String>{'Authorization': 'Bearer $token'};
+  }
 
   Future<Map<String, dynamic>> fetchBootstrapJson() {
     return _getJson('/api/v1/bootstrap');
@@ -29,7 +39,10 @@ class PlayerApiClient {
   Future<void> updatePlayerProgress(Map<String, dynamic> payload) async {
     final response = await _httpClient.patch(
       _uri('/api/v1/player/progress'),
-      headers: const <String, String>{'Content-Type': 'application/json'},
+      headers: <String, String>{
+        'Content-Type': 'application/json',
+        ..._authHeaders,
+      },
       body: jsonEncode(payload),
     );
 
@@ -42,7 +55,7 @@ class PlayerApiClient {
   }
 
   Future<Map<String, dynamic>> _getJson(String path) async {
-    final response = await _httpClient.get(_uri(path));
+    final response = await _httpClient.get(_uri(path), headers: _authHeaders);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw http.ClientException(
         'No se pudo obtener $path.',

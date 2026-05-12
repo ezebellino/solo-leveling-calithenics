@@ -4,6 +4,7 @@ import '../../../core/logging/app_logger.dart';
 import '../../../core/network/api_result.dart';
 import '../../../core/network/http_client_provider.dart';
 import '../../../core/providers/core_providers.dart';
+import '../../auth/application/auth_session_controller.dart';
 import '../domain/player_bootstrap_result.dart';
 import '../domain/player_repository.dart';
 import '../domain/player_snapshot.dart';
@@ -21,6 +22,7 @@ final playerRepositoryProvider = Provider<PlayerRepository>((ref) {
 final playerApiClientProvider = Provider<PlayerApiClient>((ref) {
   return PlayerApiClient(
     baseUrl: ref.watch(apiBaseUrlProvider),
+    accessToken: ref.watch(currentAuthAccessTokenProvider),
     httpClient: ref.watch(httpClientProvider),
     disposeHttpClient: false,
   );
