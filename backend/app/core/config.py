@@ -36,6 +36,38 @@ class Settings(BaseSettings):
         default=15,
         validation_alias="AUTH_MAGIC_LINK_TTL_MINUTES",
     )
+    auth_magic_link_email_from: str = Field(
+        default="",
+        validation_alias="AUTH_MAGIC_LINK_EMAIL_FROM",
+    )
+    auth_magic_link_email_from_name: str = Field(
+        default="Solo Leveling System",
+        validation_alias="AUTH_MAGIC_LINK_EMAIL_FROM_NAME",
+    )
+    auth_magic_link_smtp_host: str = Field(
+        default="",
+        validation_alias="AUTH_MAGIC_LINK_SMTP_HOST",
+    )
+    auth_magic_link_smtp_port: int = Field(
+        default=587,
+        validation_alias="AUTH_MAGIC_LINK_SMTP_PORT",
+    )
+    auth_magic_link_smtp_username: str = Field(
+        default="",
+        validation_alias="AUTH_MAGIC_LINK_SMTP_USERNAME",
+    )
+    auth_magic_link_smtp_password: str = Field(
+        default="",
+        validation_alias="AUTH_MAGIC_LINK_SMTP_PASSWORD",
+    )
+    auth_magic_link_smtp_use_tls: bool = Field(
+        default=True,
+        validation_alias="AUTH_MAGIC_LINK_SMTP_USE_TLS",
+    )
+    auth_magic_link_smtp_use_ssl: bool = Field(
+        default=False,
+        validation_alias="AUTH_MAGIC_LINK_SMTP_USE_SSL",
+    )
     auth_allow_dev_provider_bypass: bool = Field(
         default=True,
         validation_alias="AUTH_ALLOW_DEV_PROVIDER_BYPASS",

@@ -4,6 +4,8 @@ import importlib
 from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
+from conftest import _reset_app_modules
+
 
 def test_auth_providers_endpoint_contract(client) -> None:
     response = client.get("/api/v1/auth/providers")
@@ -91,6 +93,54 @@ def test_magic_link_request_and_verify_issue_backend_session(client) -> None:
     verify_payload = verify_response.json()
     assert verify_payload["provider"] == "magic_link"
     assert verify_payload["user"]["email"] == "magic@example.com"
+
+
+def test_magic_link_provider_is_available_when_smtp_is_configured(monkeypatch) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("AUTH_MAGIC_LINK_EMAIL_FROM", "system@example.com")
+    monkeypatch.setenv("AUTH_MAGIC_LINK_SMTP_HOST", "smtp.example.com")
+
+    _reset_app_modules()
+    service = importlib.import_module("app.modules.auth.application.service")
+
+    providers = service.list_available_auth_providers()
+    magic_link = next(provider for provider in providers if provider.code == "magic_link")
+
+    assert magic_link.availability == "available"
+    assert magic_link.requires_manual_completion is False
+    assert magic_link.status_message == "Entrega real por email disponible en este entorno."
+
+
+def test_magic_link_request_uses_email_delivery_when_smtp_is_configured(monkeypatch) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("AUTH_MAGIC_LINK_EMAIL_FROM", "system@example.com")
+    monkeypatch.setenv("AUTH_MAGIC_LINK_SMTP_HOST", "smtp.example.com")
+
+    _reset_app_modules()
+    service = importlib.import_module("app.modules.auth.application.service")
+
+    delivered = {}
+
+    def _fake_send_magic_link(message) -> None:
+        delivered["to_email"] = message.to_email
+        delivered["display_name"] = message.display_name
+        delivered["verification_url"] = message.verification_url
+
+    monkeypatch.setattr(service._delivery_gateway, "send_magic_link", _fake_send_magic_link)
+
+    result = service.request_magic_link(
+        email="magic@example.com",
+        display_name="Magic User",
+        redirect_url="https://system.example.com/auth",
+    )
+
+    assert result.delivery == "email"
+    assert result.preview_mode is False
+    assert result.verification_token is None
+    assert result.verification_url is None
+    assert delivered["to_email"] == "magic@example.com"
+    assert delivered["display_name"] == "Magic User"
+    assert delivered["verification_url"].startswith("https://system.example.com/auth?token=")
 
 
 def test_auth_session_requires_bearer_token(client) -> None:

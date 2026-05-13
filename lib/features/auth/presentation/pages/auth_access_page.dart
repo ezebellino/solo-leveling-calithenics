@@ -241,7 +241,7 @@ class _AuthAccessPageState extends ConsumerState<AuthAccessPage> {
           controller: _magicLinkTokenController,
           decoration: const InputDecoration(
             labelText: 'Magic link preview token',
-            hintText: 'Pega aqui el token de verificacion',
+            hintText: 'Pega aqui el token si estas validando el flujo preview',
           ),
           minLines: 2,
           maxLines: 3,
@@ -296,6 +296,14 @@ class _AuthAccessPageState extends ConsumerState<AuthAccessPage> {
                   Text(
                     'Entrega: ${state.magicLinkDelivery}',
                     style: const TextStyle(color: Color(0xFFA3C8D5), fontSize: 13),
+                  ),
+                if (state.magicLinkDelivery == 'email')
+                  const Padding(
+                    padding: EdgeInsets.only(top: 6),
+                    child: Text(
+                      'El enlace fue enviado por correo. Abre ese email para completar el acceso.',
+                      style: TextStyle(color: Color(0xFFDFF9FF), fontSize: 13, height: 1.4),
+                    ),
                   ),
                 if (state.magicLinkExpiresAt != null)
                   Text(

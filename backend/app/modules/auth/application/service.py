@@ -22,6 +22,10 @@ from app.modules.auth.domain.exceptions import (
     AuthSessionExpiredError,
     AuthUnauthorizedError,
 )
+from app.modules.auth.infrastructure.magic_link_delivery import (
+    MagicLinkDeliveryGateway,
+    MagicLinkDeliveryMessage,
+)
 from app.modules.auth.infrastructure.repository import AuthRepository
 from app.modules.auth.infrastructure.tokens import InvalidSignedTokenError, TokenService
 from app.modules.player.infrastructure.models import User
@@ -32,6 +36,7 @@ TOKEN_STRATEGY = "jwt_plus_session_store"
 
 _repository = AuthRepository()
 _tokens = TokenService()
+_delivery_gateway = MagicLinkDeliveryGateway()
 
 
 def _utcnow() -> datetime:
@@ -49,6 +54,8 @@ def _serialize_datetime(value: datetime) -> str:
 
 
 def list_available_auth_providers() -> tuple[AuthProviderDescriptor, ...]:
+    magic_link_configured = _delivery_gateway.is_configured()
+    magic_link_preview = settings.app_env in {"development", "test"}
     return (
         AuthProviderDescriptor(
             code="google",
@@ -70,16 +77,20 @@ def list_available_auth_providers() -> tuple[AuthProviderDescriptor, ...]:
             display_name="Magic Link",
             transport="email",
             availability=(
-                "development_preview"
-                if settings.app_env in {"development", "test"}
+                "available"
+                if magic_link_configured
+                else "development_preview"
+                if magic_link_preview
                 else "disabled"
             ),
             status_message=(
-                "Entrega en modo preview para desarrollo local."
-                if settings.app_env in {"development", "test"}
+                "Entrega real por email disponible en este entorno."
+                if magic_link_configured
+                else "Entrega en modo preview para desarrollo local."
+                if magic_link_preview
                 else "La entrega real por email todavia no esta configurada en este entorno."
             ),
-            requires_manual_completion=settings.app_env in {"development", "test"},
+            requires_manual_completion=not magic_link_configured,
         ),
     )
 
@@ -153,11 +164,6 @@ def request_magic_link(
     normalized_email = email.strip().lower()
     if not normalized_email:
         raise AuthMagicLinkInvalidError("Email is required.")
-    preview_mode = settings.app_env in {"development", "test"}
-    if not preview_mode:
-        raise AuthProviderVerificationFailedError(
-            "Magic link delivery is not configured in this environment.",
-        )
 
     expires_at = _tokens.build_magic_link_expiry()
     verification_token = _tokens.issue_magic_link_token(email=normalized_email, expires_at=expires_at)
@@ -165,6 +171,27 @@ def request_magic_link(
         redirect_url=redirect_url,
         verification_token=verification_token,
     )
+    delivery_configured = _delivery_gateway.is_configured()
+    preview_mode = not delivery_configured and settings.app_env in {"development", "test"}
+
+    if delivery_configured:
+        if verification_url is None:
+            raise AuthMagicLinkInvalidError(
+                "Redirect URL is required when magic link email delivery is enabled.",
+            )
+        _delivery_gateway.send_magic_link(
+            MagicLinkDeliveryMessage(
+                to_email=normalized_email,
+                display_name=(display_name or "").strip() or None,
+                verification_url=verification_url,
+                expires_at=expires_at,
+            ),
+        )
+    elif not preview_mode:
+        raise AuthProviderVerificationFailedError(
+            "Magic link delivery is not configured in this environment.",
+        )
+
     log_event(
         logger,
         "auth_magic_link_requested",
@@ -174,14 +201,15 @@ def request_magic_link(
         result="success",
         email=normalized_email,
         requested_display_name=(display_name or "").strip() or None,
+        delivery="email" if delivery_configured else "preview",
         preview_mode=preview_mode,
     )
     return RequestedMagicLink(
         email=normalized_email,
         expires_at=expires_at,
-        delivery="preview" if preview_mode else "email",
+        delivery="email" if delivery_configured else "preview",
         verification_token=verification_token if preview_mode else None,
-        verification_url=verification_url,
+        verification_url=verification_url if preview_mode else None,
         preview_mode=preview_mode,
         contract_version=AUTH_CONTRACT_VERSION,
     )

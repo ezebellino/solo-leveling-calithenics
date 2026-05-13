@@ -127,6 +127,38 @@ void main() {
       expect(state.magicLinkVerificationUrl, 'http://localhost:7358/auth?token=preview-token-123');
     });
 
+    test('requestMagicLink stores email delivery state without preview token', () async {
+      final repository = _FakeAuthSessionRepository(
+        providers: const [],
+        magicLinkResult: MagicLinkRequestResult(
+          email: 'magic@example.com',
+          expiresAt: DateTime.utc(2026, 5, 12, 12),
+          delivery: 'email',
+          previewMode: false,
+          previewToken: null,
+          verificationUrl: null,
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          authSessionRepositoryProvider.overrideWithValue(repository),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(authSessionControllerProvider.notifier).requestMagicLink(
+            email: 'magic@example.com',
+            displayName: 'Magic User',
+            redirectUrl: 'https://system.example.com/auth',
+          );
+
+      final state = container.read(authSessionControllerProvider);
+      expect(state.magicLinkPreviewToken, isNull);
+      expect(state.magicLinkEmail, 'magic@example.com');
+      expect(state.magicLinkDelivery, 'email');
+      expect(state.magicLinkVerificationUrl, isNull);
+    });
+
     test('signOut clears the active session', () async {
       final repository = _FakeAuthSessionRepository(
         providers: const [],

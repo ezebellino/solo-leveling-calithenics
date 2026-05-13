@@ -55,6 +55,15 @@ class AuthMagicLinkExpiredError(AppError):
         )
 
 
+class AuthMagicLinkDeliveryFailedError(AppError):
+    def __init__(self, message: str = "Magic link delivery failed."):
+        super().__init__(
+            code="auth_magic_link_delivery_failed",
+            message=message,
+            status_code=503,
+        )
+
+
 class AuthInvalidCredentialsError(AppError):
     def __init__(self, message: str = "Invalid authentication credentials."):
         super().__init__(
