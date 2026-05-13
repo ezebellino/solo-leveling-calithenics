@@ -11,6 +11,7 @@ import '../../../home/presentation/widgets/stat_hex_tile.dart';
 import '../../../home/presentation/widgets/system_badge.dart';
 import '../../../quests/presentation/widgets/quest_card.dart';
 import '../widgets/system_muscle_map_models.dart';
+import '../widgets/system_muscle_silhouette.dart';
 
 class SystemTab extends StatelessWidget {
   const SystemTab({
@@ -315,11 +316,10 @@ class SystemTab extends StatelessWidget {
                     .toList(growable: false),
               ),
               const SizedBox(height: 16),
-              _MuscleMapSummaryPanel(
-                primaryFocus: muscleMapModel.primaryFocus,
-                secondaryFocus: muscleMapModel.secondaryFocus,
-                recoveryHint: muscleMapModel.recoveryHint,
+              SystemMuscleSilhouettePanel(
                 palette: palette,
+                frontZones: muscleMapModel.highlightZonesFront,
+                backZones: muscleMapModel.highlightZonesBack,
               ),
             ],
           ),
@@ -380,61 +380,4 @@ WorkoutDay _todayWorkout(List<WorkoutDay> weeklyPlan) {
   final weekday = DateTime.now().weekday;
   final index = (weekday - 1).clamp(0, weeklyPlan.length - 1);
   return weeklyPlan[index];
-}
-
-class _MuscleMapSummaryPanel extends StatelessWidget {
-  const _MuscleMapSummaryPanel({
-    required this.primaryFocus,
-    required this.secondaryFocus,
-    required this.recoveryHint,
-    required this.palette,
-  });
-
-  final String primaryFocus;
-  final String secondaryFocus;
-  final String recoveryHint;
-  final SectionPalette palette;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: palette.primary.withValues(alpha: 0.18)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Foco principal: $primaryFocus',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Foco secundario: $secondaryFocus',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.white70,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Recuperacion sugerida: $recoveryHint',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.white60,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

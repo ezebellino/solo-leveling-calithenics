@@ -114,11 +114,14 @@ void main() {
     );
 
     expect(find.text('MAPA MUSCULAR DEL DIA'), findsOneWidget);
-    expect(
-      find.textContaining('Foco principal: Pecho, hombro y triceps'),
-      findsOneWidget,
-    );
     expect(find.textContaining('ETAPA ACTIVA \u00b7 ADVANCED'), findsOneWidget);
+    expect(find.text('Vista frontal'), findsOneWidget);
+    expect(find.text('Vista dorsal'), findsOneWidget);
+    expect(find.text('4 ZONAS ACTIVAS'), findsOneWidget);
+    expect(find.text('2 ZONAS ACTIVAS'), findsOneWidget);
+    expect(find.textContaining('Foco principal:'), findsNothing);
+    expect(find.textContaining('Foco secundario:'), findsNothing);
+    expect(find.textContaining('Recuperacion sugerida:'), findsNothing);
     expect(find.text('CAMINO DEL CAZADOR'), findsNothing);
   });
 }
