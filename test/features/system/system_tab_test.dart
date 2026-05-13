@@ -119,13 +119,26 @@ void main() {
     expect(find.text('Vista dorsal'), findsOneWidget);
     expect(find.text('4 ZONAS ACTIVAS'), findsOneWidget);
     expect(find.text('2 ZONAS ACTIVAS'), findsOneWidget);
+    expect(find.text('Pecho'), findsOneWidget);
+    expect(find.text('Hombro'), findsOneWidget);
+    expect(find.text('Triceps'), findsOneWidget);
+    expect(find.text('Core'), findsOneWidget);
     expect(find.text('EJERCICIOS EN FOCO'), findsOneWidget);
     expect(find.text('Foco principal'), findsOneWidget);
     expect(find.text('Recuperacion sugerida'), findsOneWidget);
+    expect(find.text('Pecho, hombro y triceps'), findsOneWidget);
+    expect(find.text('Movilidad de hombro y pectoral'), findsOneWidget);
+    expect(find.text('Flexiones'), findsOneWidget);
+    expect(find.text('Pike push-ups'), findsOneWidget);
+    expect(find.text('MUSCULOS INVOLUCRADOS'), findsNWidgets(2));
+    expect(find.text('Pecho \u00b7 Hombro \u00b7 Triceps'), findsOneWidget);
+    expect(find.text('Hombro \u00b7 Triceps \u00b7 Core'), findsOneWidget);
     expect(find.byKey(const Key('muscle-map-summary-primary')), findsOneWidget);
     expect(find.byKey(const Key('muscle-map-summary-recovery')), findsOneWidget);
     expect(find.byKey(const Key('muscle-map-exercise-0')), findsOneWidget);
     expect(find.byKey(const Key('muscle-map-exercise-1')), findsOneWidget);
+    expect(find.byKey(const Key('system-muscle-front')), findsOneWidget);
+    expect(find.byKey(const Key('system-muscle-back')), findsOneWidget);
     expect(find.text('CAMINO DEL CAZADOR'), findsNothing);
   });
 }
