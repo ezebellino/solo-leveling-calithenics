@@ -7,6 +7,9 @@ class AuthSessionState {
     this.isSubmitting = false,
     this.providers = const <AuthProviderOption>[],
     this.session,
+    this.biometricSupported = false,
+    this.biometricUnlockEnabled = false,
+    this.requiresBiometricUnlock = false,
     this.errorMessage,
     this.magicLinkPreviewToken,
     this.magicLinkEmail,
@@ -19,6 +22,9 @@ class AuthSessionState {
   final bool isSubmitting;
   final List<AuthProviderOption> providers;
   final AuthSession? session;
+  final bool biometricSupported;
+  final bool biometricUnlockEnabled;
+  final bool requiresBiometricUnlock;
   final String? errorMessage;
   final String? magicLinkPreviewToken;
   final String? magicLinkEmail;
@@ -33,6 +39,9 @@ class AuthSessionState {
     bool? isSubmitting,
     List<AuthProviderOption>? providers,
     AuthSession? session,
+    bool? biometricSupported,
+    bool? biometricUnlockEnabled,
+    bool? requiresBiometricUnlock,
     String? errorMessage,
     String? magicLinkPreviewToken,
     String? magicLinkEmail,
@@ -52,6 +61,11 @@ class AuthSessionState {
       isSubmitting: isSubmitting ?? this.isSubmitting,
       providers: providers ?? this.providers,
       session: clearSession ? null : (session ?? this.session),
+      biometricSupported: biometricSupported ?? this.biometricSupported,
+      biometricUnlockEnabled:
+          biometricUnlockEnabled ?? this.biometricUnlockEnabled,
+      requiresBiometricUnlock:
+          requiresBiometricUnlock ?? this.requiresBiometricUnlock,
       errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
       magicLinkPreviewToken: clearMagicLinkPreviewToken
           ? null

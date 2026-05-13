@@ -4,6 +4,7 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../../core/network/http_client_provider.dart';
 import '../../../core/providers/core_providers.dart';
+import '../domain/device_biometric_auth.dart';
 import '../domain/auth_provider_option.dart';
 import '../domain/auth_session.dart';
 import '../domain/auth_session_repository.dart';
@@ -11,6 +12,7 @@ import '../domain/google_identity_provider.dart';
 import '../domain/magic_link_request_result.dart';
 import 'auth_api_client.dart';
 import 'auth_local_data_source.dart';
+import 'device_biometric_auth_impl.dart';
 import 'google_identity_provider_impl.dart';
 
 final authSessionRepositoryProvider = Provider<AuthSessionRepository>((ref) {
@@ -35,6 +37,10 @@ final googleIdentityProviderProvider = Provider<GoogleIdentityProvider>((ref) {
     clientId: ref.watch(googleClientIdProvider),
     serverClientId: ref.watch(googleServerClientIdProvider),
   );
+});
+
+final deviceBiometricAuthProvider = Provider<DeviceBiometricAuth>((ref) {
+  return DeviceBiometricAuthImpl();
 });
 
 class AuthRepositoryImpl implements AuthSessionRepository {

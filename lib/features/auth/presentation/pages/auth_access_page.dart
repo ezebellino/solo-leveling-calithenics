@@ -123,6 +123,8 @@ class _AuthAccessPageState extends ConsumerState<AuthAccessPage> {
         Text(
           state.isAuthenticated
               ? 'La cuenta ya tiene una sesion activa. Desde aqui podemos validar Google, magic link y restauracion local.'
+              : state.requiresBiometricUnlock
+              ? 'Hay una sesion guardada en este dispositivo. Desbloqueala con biometria para continuar o descartala si quieres usar otra cuenta.'
               : 'Preparamos el ingreso con Google y magic link, dejando una sesion durable para conservar el historial del jugador.',
           style: const TextStyle(
             color: Color(0xFFB9C7D6),
@@ -147,6 +149,61 @@ class _AuthAccessPageState extends ConsumerState<AuthAccessPage> {
           ),
           const SizedBox(height: 18),
         ],
+        if (state.requiresBiometricUnlock) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: const Color(0x1A79E7FF),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: _palette.primary.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Sesion protegida por el dispositivo',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Usa huella, rostro o el metodo seguro del sistema operativo para restaurar el progreso del cazador.',
+                  style: TextStyle(
+                    color: Color(0xFFDFF9FF),
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: state.isSubmitting
+                          ? null
+                          : controller.unlockWithBiometrics,
+                      icon: const Icon(Icons.fingerprint_rounded),
+                      label: const Text('Desbloquear con biometria'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: state.isSubmitting ? null : controller.signOut,
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      label: const Text('Olvidar sesion guardada'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
+        ],
+        if (!state.requiresBiometricUnlock) ...[
         if (state.providers.isNotEmpty) ...[
           Wrap(
             spacing: 10,
@@ -325,6 +382,7 @@ class _AuthAccessPageState extends ConsumerState<AuthAccessPage> {
             ),
           ),
         ],
+        ],
         if (state.session != null) ...[
           const SizedBox(height: 24),
           Container(
@@ -356,6 +414,63 @@ class _AuthAccessPageState extends ConsumerState<AuthAccessPage> {
                   'Proveedor: ${state.session!.provider} • Expira: ${state.session!.expiresAt.toLocal()}',
                   style: const TextStyle(color: Color(0xFFA3C8D5), fontSize: 13),
                 ),
+                if (state.biometricSupported) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0x1400FFC8),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: _palette.secondary.withValues(alpha: 0.20),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          state.biometricUnlockEnabled
+                              ? 'Acceso biometrico activo'
+                              : 'Acceso biometrico disponible',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          state.biometricUnlockEnabled
+                              ? 'La proxima vez el Sistema pedira desbloqueo local antes de restaurar la sesion.'
+                              : 'Activalo para proteger la restauracion local con huella, rostro o Windows Hello.',
+                          style: const TextStyle(
+                            color: Color(0xFFDFF9FF),
+                            fontSize: 13,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: state.isSubmitting
+                              ? null
+                              : state.biometricUnlockEnabled
+                                  ? controller.disableBiometricUnlock
+                                  : controller.enableBiometricUnlock,
+                          icon: Icon(
+                            state.biometricUnlockEnabled
+                                ? Icons.lock_open_rounded
+                                : Icons.fingerprint_rounded,
+                          ),
+                          label: Text(
+                            state.biometricUnlockEnabled
+                                ? 'Desactivar biometria'
+                                : 'Activar biometria',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 14),
                 OutlinedButton.icon(
                   onPressed: state.isSubmitting ? null : controller.signOut,

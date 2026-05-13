@@ -3,10 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:solo_leveling_calisthenics/core/errors/app_exception.dart';
 import 'package:solo_leveling_calisthenics/features/auth/application/auth_session_controller.dart';
 import 'package:solo_leveling_calisthenics/features/auth/application/auth_session_state.dart';
+import 'package:solo_leveling_calisthenics/features/auth/data/auth_local_data_source.dart';
 import 'package:solo_leveling_calisthenics/features/auth/data/auth_repository_impl.dart';
 import 'package:solo_leveling_calisthenics/features/auth/domain/auth_provider_option.dart';
 import 'package:solo_leveling_calisthenics/features/auth/domain/auth_session.dart';
 import 'package:solo_leveling_calisthenics/features/auth/domain/auth_session_repository.dart';
+import 'package:solo_leveling_calisthenics/features/auth/domain/device_biometric_auth.dart';
 import 'package:solo_leveling_calisthenics/features/auth/domain/magic_link_request_result.dart';
 
 void main() {
@@ -25,6 +27,8 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           authSessionRepositoryProvider.overrideWithValue(repository),
+          authLocalDataSourceProvider.overrideWithValue(_FakeAuthLocalDataSource()),
+          deviceBiometricAuthProvider.overrideWithValue(_FakeDeviceBiometricAuth()),
         ],
       );
       addTearDown(container.dispose);
@@ -60,6 +64,8 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           authSessionRepositoryProvider.overrideWithValue(repository),
+          authLocalDataSourceProvider.overrideWithValue(_FakeAuthLocalDataSource()),
+          deviceBiometricAuthProvider.overrideWithValue(_FakeDeviceBiometricAuth()),
         ],
       );
       addTearDown(container.dispose);
@@ -72,6 +78,41 @@ void main() {
       expect(state.providers.single.code, 'magic_link');
     });
 
+    test('initialize keeps stored session locked when biometric unlock is enabled', () async {
+      final repository = _FakeAuthSessionRepository(
+        providers: const [
+          AuthProviderOption(
+            code: 'google',
+            displayName: 'Google',
+            transport: 'oauth',
+            availability: 'available',
+          ),
+        ],
+        restoredSession: _session,
+      );
+      final localDataSource = _FakeAuthLocalDataSource(
+        storedAccessToken: 'access-token-123',
+        biometricUnlockEnabled: true,
+      );
+      final biometricAuth = _FakeDeviceBiometricAuth(isSupportedResult: true);
+      final container = ProviderContainer(
+        overrides: [
+          authSessionRepositoryProvider.overrideWithValue(repository),
+          authLocalDataSourceProvider.overrideWithValue(localDataSource),
+          deviceBiometricAuthProvider.overrideWithValue(biometricAuth),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(authSessionControllerProvider.notifier).initialize();
+
+      final state = container.read(authSessionControllerProvider);
+      expect(state.isAuthenticated, isFalse);
+      expect(state.requiresBiometricUnlock, isTrue);
+      expect(state.biometricUnlockEnabled, isTrue);
+      expect(repository.restoreSessionCalls, 0);
+    });
+
     test('signInWithGoogle stores authenticated session', () async {
       final repository = _FakeAuthSessionRepository(
         providers: const [],
@@ -80,6 +121,8 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           authSessionRepositoryProvider.overrideWithValue(repository),
+          authLocalDataSourceProvider.overrideWithValue(_FakeAuthLocalDataSource()),
+          deviceBiometricAuthProvider.overrideWithValue(_FakeDeviceBiometricAuth()),
         ],
       );
       addTearDown(container.dispose);
@@ -110,6 +153,8 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           authSessionRepositoryProvider.overrideWithValue(repository),
+          authLocalDataSourceProvider.overrideWithValue(_FakeAuthLocalDataSource()),
+          deviceBiometricAuthProvider.overrideWithValue(_FakeDeviceBiometricAuth()),
         ],
       );
       addTearDown(container.dispose);
@@ -142,6 +187,8 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           authSessionRepositoryProvider.overrideWithValue(repository),
+          authLocalDataSourceProvider.overrideWithValue(_FakeAuthLocalDataSource()),
+          deviceBiometricAuthProvider.overrideWithValue(_FakeDeviceBiometricAuth()),
         ],
       );
       addTearDown(container.dispose);
@@ -167,6 +214,8 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           authSessionRepositoryProvider.overrideWithValue(repository),
+          authLocalDataSourceProvider.overrideWithValue(_FakeAuthLocalDataSource()),
+          deviceBiometricAuthProvider.overrideWithValue(_FakeDeviceBiometricAuth()),
         ],
       );
       addTearDown(container.dispose);
@@ -182,6 +231,69 @@ void main() {
       expect(repository.didSignOut, isTrue);
     });
 
+    test('unlockWithBiometrics restores the stored authenticated session', () async {
+      final repository = _FakeAuthSessionRepository(
+        providers: const [],
+        restoredSession: _session,
+      );
+      final localDataSource = _FakeAuthLocalDataSource(
+        storedAccessToken: 'access-token-123',
+        biometricUnlockEnabled: true,
+      );
+      final biometricAuth = _FakeDeviceBiometricAuth(
+        isSupportedResult: true,
+        authenticateResult: true,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          authSessionRepositoryProvider.overrideWithValue(repository),
+          authLocalDataSourceProvider.overrideWithValue(localDataSource),
+          deviceBiometricAuthProvider.overrideWithValue(biometricAuth),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(authSessionControllerProvider.notifier).initialize();
+      await container.read(authSessionControllerProvider.notifier).unlockWithBiometrics();
+
+      final state = container.read(authSessionControllerProvider);
+      expect(state.session?.userId, _session.userId);
+      expect(state.requiresBiometricUnlock, isFalse);
+    });
+
+    test('enableBiometricUnlock persists local preference after local auth succeeds', () async {
+      final repository = _FakeAuthSessionRepository(
+        providers: const [],
+        googleSession: _session,
+      );
+      final localDataSource = _FakeAuthLocalDataSource();
+      final biometricAuth = _FakeDeviceBiometricAuth(
+        isSupportedResult: true,
+        authenticateResult: true,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          authSessionRepositoryProvider.overrideWithValue(repository),
+          authLocalDataSourceProvider.overrideWithValue(localDataSource),
+          deviceBiometricAuthProvider.overrideWithValue(biometricAuth),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(authSessionControllerProvider.notifier).signInWithGoogle(
+            email: 'hunter@example.com',
+            displayName: 'Hunter',
+          );
+      container.read(authSessionControllerProvider.notifier).state = container
+          .read(authSessionControllerProvider)
+          .copyWith(biometricSupported: true);
+      await container.read(authSessionControllerProvider.notifier).enableBiometricUnlock();
+
+      final state = container.read(authSessionControllerProvider);
+      expect(state.biometricUnlockEnabled, isTrue);
+      expect(localDataSource.biometricUnlockEnabled, isTrue);
+    });
+
     test('initialize stores mapped message when repository fails', () async {
       final container = ProviderContainer(
         overrides: [
@@ -194,6 +306,8 @@ void main() {
               ),
             ),
           ),
+          authLocalDataSourceProvider.overrideWithValue(_FakeAuthLocalDataSource()),
+          deviceBiometricAuthProvider.overrideWithValue(_FakeDeviceBiometricAuth()),
         ],
       );
       addTearDown(container.dispose);
@@ -233,6 +347,7 @@ class _FakeAuthSessionRepository implements AuthSessionRepository {
   final Object? providersError;
 
   bool didSignOut = false;
+  int restoreSessionCalls = 0;
 
   @override
   Future<List<AuthProviderOption>> fetchProviders() async {
@@ -252,7 +367,10 @@ class _FakeAuthSessionRepository implements AuthSessionRepository {
   }
 
   @override
-  Future<AuthSession?> restoreSession() async => restoredSession;
+  Future<AuthSession?> restoreSession() async {
+    restoreSessionCalls += 1;
+    return restoredSession;
+  }
 
   @override
   Future<AuthSession> signInWithGoogle({
@@ -271,4 +389,57 @@ class _FakeAuthSessionRepository implements AuthSessionRepository {
   Future<AuthSession> verifyMagicLink({required String token}) async {
     return googleSession ?? _session;
   }
+}
+
+class _FakeAuthLocalDataSource extends AuthLocalDataSource {
+  _FakeAuthLocalDataSource({
+    this.storedAccessToken,
+    this.biometricUnlockEnabled = false,
+  });
+
+  String? storedAccessToken;
+  bool biometricUnlockEnabled;
+
+  @override
+  Future<String?> loadAccessToken() async => storedAccessToken;
+
+  @override
+  Future<bool> hasStoredAccessToken() async =>
+      storedAccessToken != null && storedAccessToken!.isNotEmpty;
+
+  @override
+  Future<void> saveAccessToken(String accessToken) async {
+    storedAccessToken = accessToken;
+  }
+
+  @override
+  Future<void> clearAccessToken() async {
+    storedAccessToken = null;
+  }
+
+  @override
+  Future<bool> loadBiometricUnlockEnabled() async => biometricUnlockEnabled;
+
+  @override
+  Future<void> saveBiometricUnlockEnabled(bool enabled) async {
+    biometricUnlockEnabled = enabled;
+  }
+}
+
+class _FakeDeviceBiometricAuth implements DeviceBiometricAuth {
+  _FakeDeviceBiometricAuth({
+    this.isSupportedResult = false,
+    this.authenticateResult = false,
+  });
+
+  final bool isSupportedResult;
+  final bool authenticateResult;
+
+  @override
+  Future<bool> authenticate({required String localizedReason}) async {
+    return authenticateResult;
+  }
+
+  @override
+  Future<bool> isSupported() async => isSupportedResult;
 }
