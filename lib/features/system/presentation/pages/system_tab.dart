@@ -4,13 +4,13 @@ import '../../../home/domain/daily_quest.dart';
 import '../../../home/domain/hunter_profile.dart';
 import '../../../home/domain/training_path.dart';
 import '../../../home/domain/workout_day.dart';
-import '../../../quests/presentation/widgets/quest_card.dart';
 import '../../../home/presentation/widgets/holographic_panel.dart';
 import '../../../home/presentation/widgets/screen_frame.dart';
 import '../../../home/presentation/widgets/section_palette.dart';
 import '../../../home/presentation/widgets/stat_hex_tile.dart';
 import '../../../home/presentation/widgets/system_badge.dart';
-import '../../../home/presentation/widgets/training_widgets.dart';
+import '../../../quests/presentation/widgets/quest_card.dart';
+import '../widgets/system_muscle_map_models.dart';
 
 class SystemTab extends StatelessWidget {
   const SystemTab({
@@ -35,6 +35,12 @@ class SystemTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final today = _todayWorkout(weeklyPlan);
+    final selectedStageTitle = trainingPath.stages[selectedStageIndex].title;
+    final muscleMapModel = SystemMuscleMapModel.fromWorkoutFocus(
+      focus: today.focus,
+      stageTitle: selectedStageTitle,
+    );
 
     return ScreenFrame(
       primary: palette.primary,
@@ -208,41 +214,33 @@ class SystemTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Builder(
-                builder: (context) {
-                  final weekday = DateTime.now().weekday;
-                  final index = (weekday - 1).clamp(0, weeklyPlan.length - 1);
-                  final today = weeklyPlan[index];
-                  return Row(
-                    children: [
-                      SizedBox(
-                        width: 56,
-                        child: Text(
-                          today.label,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: Colors.white70,
-                            letterSpacing: 1.6,
-                          ),
-                        ),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 56,
+                    child: Text(
+                      today.label,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: Colors.white70,
+                        letterSpacing: 1.6,
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          today.focus,
-                          style: theme.textTheme.bodyLarge,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Icon(
-                        today.isCompleted
-                            ? Icons.check_circle_rounded
-                            : Icons.radio_button_unchecked_rounded,
-                        color:
-                            today.isCompleted ? palette.secondary : Colors.white38,
-                      ),
-                    ],
-                  );
-                },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      today.focus,
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Icon(
+                    today.isCompleted
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    color: today.isCompleted ? palette.secondary : Colors.white38,
+                  ),
+                ],
               ),
               const SizedBox(height: 14),
               Text(
@@ -257,7 +255,7 @@ class SystemTab extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         Text(
-          'CAMINO DEL CAZADOR',
+          'MAPA MUSCULAR DEL DIA',
           style: theme.textTheme.titleMedium?.copyWith(
             letterSpacing: 2.4,
             color: palette.primary,
@@ -273,7 +271,7 @@ class SystemTab extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                trainingPath.currentBlock.toUpperCase(),
+                'ETAPA ACTIVA \u00b7 ${selectedStageTitle.toUpperCase()}',
                 style: theme.textTheme.labelLarge?.copyWith(
                   color: palette.secondary,
                   letterSpacing: 1.8,
@@ -281,22 +279,48 @@ class SystemTab extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                trainingPath.summary,
+                'El Sistema resalta los grupos que deberian cargar mas trabajo hoy segun el protocolo actual.',
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: Colors.white70,
                   height: 1.5,
                 ),
               ),
               const SizedBox(height: 16),
-              ...trainingPath.stages.take(3).map(
-                    (stage) => TrainingStageTile(
-                      stage: stage,
-                      palette: palette,
-                      isActive: trainingPath.stages[selectedStageIndex].title ==
-                          stage.title,
-                      compact: true,
-                    ),
-                  ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: muscleMapModel.highlightTags
+                    .map(
+                      (tag) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: palette.secondary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: palette.secondary.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Text(
+                          tag,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: palette.secondary,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+              const SizedBox(height: 16),
+              _MuscleMapSummaryPanel(
+                primaryFocus: muscleMapModel.primaryFocus,
+                secondaryFocus: muscleMapModel.secondaryFocus,
+                recoveryHint: muscleMapModel.recoveryHint,
+                palette: palette,
+              ),
             ],
           ),
         ),
@@ -344,6 +368,69 @@ class _SystemInfoChip extends StatelessWidget {
             style: theme.textTheme.bodyMedium?.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+WorkoutDay _todayWorkout(List<WorkoutDay> weeklyPlan) {
+  final weekday = DateTime.now().weekday;
+  final index = (weekday - 1).clamp(0, weeklyPlan.length - 1);
+  return weeklyPlan[index];
+}
+
+class _MuscleMapSummaryPanel extends StatelessWidget {
+  const _MuscleMapSummaryPanel({
+    required this.primaryFocus,
+    required this.secondaryFocus,
+    required this.recoveryHint,
+    required this.palette,
+  });
+
+  final String primaryFocus;
+  final String secondaryFocus;
+  final String recoveryHint;
+  final SectionPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: palette.primary.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Foco principal: $primaryFocus',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Foco secundario: $secondaryFocus',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white70,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Recuperacion sugerida: $recoveryHint',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white60,
+              height: 1.4,
             ),
           ),
         ],
