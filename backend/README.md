@@ -251,3 +251,98 @@ Al cierre de la fase se verifico:
 - `py -3 -m compileall app tests`
 
 La expectativa de la baseline actual es que el backend pase completo con el contrato nuevo de `requestId` y los endpoints durables de `inventory` + `shadows`.
+
+## Phase 5 Auth Baseline
+
+`Phase 5` agrega autenticacion real al backend y vincula la sesion con el jugador autenticado.
+
+### Modulo nuevo
+
+`backend/app/modules/auth/`
+
+Capas activas:
+
+- `api/`
+- `application/`
+- `domain/`
+- `infrastructure/`
+
+### Endpoints de auth
+
+- `GET /api/v1/auth/providers`
+- `POST /api/v1/auth/google`
+- `POST /api/v1/auth/magic-link/request`
+- `POST /api/v1/auth/magic-link/verify`
+- `GET /api/v1/auth/session`
+- `POST /api/v1/auth/logout`
+
+### Regla de ownership
+
+El backend ya resuelve `current_user` real y usa ese ownership para:
+
+- `player`
+- `quests`
+- `inventory`
+- `shadows`
+
+Eso evita que el progreso siga siendo implicitamente anonimo cuando ya hay sesion autenticada.
+
+### Google Sign-In
+
+Estado actual:
+
+- el backend puede verificar `idToken` real si tiene configurado `AUTH_GOOGLE_CLIENT_IDS`
+- si el entorno no esta listo pero sigue en `development/test` y `AUTH_ALLOW_DEV_PROVIDER_BYPASS=true`, el provider puede quedar en `development_preview`
+- `auth/providers` expone esa disponibilidad real
+
+Variable necesaria:
+
+- `AUTH_GOOGLE_CLIENT_IDS`
+  - lista separada por comas de client IDs permitidos
+
+Dependencia agregada:
+
+- `google-auth`
+
+### Magic link
+
+El backend soporta dos modos:
+
+1. `preview`
+   - para desarrollo local
+   - devuelve token de verificacion y URL local
+2. `email`
+   - si SMTP esta configurado
+   - envia correo real y ya no devuelve preview token
+
+Variables de entorno:
+
+- `AUTH_MAGIC_LINK_EMAIL_FROM`
+- `AUTH_MAGIC_LINK_EMAIL_FROM_NAME`
+- `AUTH_MAGIC_LINK_SMTP_HOST`
+- `AUTH_MAGIC_LINK_SMTP_PORT`
+- `AUTH_MAGIC_LINK_SMTP_USERNAME`
+- `AUTH_MAGIC_LINK_SMTP_PASSWORD`
+- `AUTH_MAGIC_LINK_SMTP_USE_TLS`
+- `AUTH_MAGIC_LINK_SMTP_USE_SSL`
+
+### Sesion y seguridad
+
+- sesion durable persistida en `auth_sessions`
+- token firmado + validacion contra session store
+- logout revoca la sesion
+- `GET /auth/session` restaura el usuario autenticado
+
+### Verificacion de Phase 5
+
+Se verifico sobre esta baseline:
+
+- `flutter test` focalizado sobre `auth` y `home`
+- `flutter analyze` focalizado sobre `auth`
+- `py -3 -m pytest backend\tests\test_auth.py backend\tests\test_player_bootstrap.py -q`
+- `py -3 -m compileall backend\app\modules\auth backend\app\modules\player backend\tests\test_auth.py backend\tests\test_player_bootstrap.py`
+
+### Deuda conocida
+
+- falta setup operativo final de `Google Sign-In` por plataforma
+- siguen warnings viejos de aliases `Pydantic`

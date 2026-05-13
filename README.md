@@ -399,3 +399,98 @@ Con esta base ya tiene sentido avanzar con:
 - `sharing`
 - observabilidad productiva mas profunda
 - sincronizacion entre dispositivos
+
+## Phase 5 Auth Baseline
+
+`Phase 5` deja la primera version seria de autenticacion y sesion durable del producto.
+
+### Proveedores activos
+
+- `Google Sign-In`
+  - adapter real del lado Flutter
+  - backend preparado para verificar `idToken` real cuando el entorno tenga client IDs configurados
+  - fallback `development_preview` si el entorno sigue en modo dev/test sin verificacion real
+- `email magic link`
+  - `preview` local para desarrollo
+  - entrega real por SMTP si el backend esta configurado
+
+### Flujo de sesion
+
+El flujo actual queda asi:
+
+1. el usuario entra con `Google` o `magic link`
+2. backend emite una sesion durable y token de acceso
+3. Flutter guarda el token localmente
+4. `HomePage` decide entre:
+   - `restoring`
+   - `unauthenticated`
+   - `authenticated`
+5. si el usuario activo biometria local:
+   - la app no restaura la sesion en silencio
+   - primero pide desbloqueo local del dispositivo
+
+### Regla importante
+
+La biometria **no** reemplaza la cuenta.
+
+Solo sirve para:
+
+- desbloquear una sesion ya emitida;
+- proteger restauracion local en ese dispositivo.
+
+La identidad real sigue viniendo de:
+
+- `Google`
+- `magic link`
+
+### Como ver la pantalla de login
+
+Si al levantar la app ya entras directo al juego, no es un bug del gate: significa que ya hay una sesion guardada.
+
+Para volver a ver la pantalla de acceso:
+
+1. abrir la app
+2. ir al panel de sesion autenticada
+3. tocar `Cerrar sesion`
+
+Si la biometria local estaba activa y la app te pide desbloqueo:
+
+1. tocar `Olvidar sesion guardada`
+2. eso limpia el token local
+3. la siguiente carga vuelve a mostrar `Acceso del Sistema`
+
+### Configuracion necesaria para entorno real
+
+Frontend Flutter:
+
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_SERVER_CLIENT_ID`
+
+Backend FastAPI:
+
+- `AUTH_GOOGLE_CLIENT_IDS`
+- `AUTH_MAGIC_LINK_EMAIL_FROM`
+- `AUTH_MAGIC_LINK_EMAIL_FROM_NAME`
+- `AUTH_MAGIC_LINK_SMTP_HOST`
+- `AUTH_MAGIC_LINK_SMTP_PORT`
+- `AUTH_MAGIC_LINK_SMTP_USERNAME`
+- `AUTH_MAGIC_LINK_SMTP_PASSWORD`
+- `AUTH_MAGIC_LINK_SMTP_USE_TLS`
+- `AUTH_MAGIC_LINK_SMTP_USE_SSL`
+
+### Resultado arquitectonico
+
+Con `Phase 5`, la base ya soporta:
+
+- usuario autenticado real
+- sesion durable
+- ownership `identity -> player`
+- `Google Sign-In`
+- `magic link`
+- desbloqueo biometrico local
+
+### Deuda conocida
+
+- falta documentar y ejecutar setup final de `Google` para cada plataforma concreta
+- siguen warnings viejos de aliases `Pydantic`
+- `special quest decision` todavia no forma parte del contrato backend durable
