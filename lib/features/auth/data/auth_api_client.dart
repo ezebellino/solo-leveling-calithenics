@@ -41,19 +41,21 @@ class AuthApiClient {
   }
 
   Future<AuthSession> exchangeGoogle({
+    required String idToken,
     required String email,
     required String displayName,
     required String providerSubject,
+    required String avatarUrl,
   }) async {
     final response = await _httpClient.post(
       _uri('/api/v1/auth/google'),
       headers: const <String, String>{'Content-Type': 'application/json'},
       body: jsonEncode(<String, Object?>{
-        'idToken': 'dev-google-token',
+        'idToken': idToken,
         'email': email,
         'displayName': displayName,
         'providerSubject': providerSubject,
-        'avatarUrl': '',
+        'avatarUrl': avatarUrl,
       }),
     );
     _throwIfRequestFailed(

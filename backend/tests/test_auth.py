@@ -18,7 +18,7 @@ def test_auth_providers_endpoint_contract(client) -> None:
                 "displayName": "Google",
                 "transport": "oauth",
                 "availability": "development_preview",
-                "statusMessage": "Usa bypass de desarrollo hasta integrar Google Sign-In real.",
+                "statusMessage": "Usa bypass de desarrollo hasta configurar la verificacion real del token.",
                 "requiresManualCompletion": False,
             },
             {

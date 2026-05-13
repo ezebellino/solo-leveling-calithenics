@@ -7,13 +7,16 @@ import '../../../core/providers/core_providers.dart';
 import '../domain/auth_provider_option.dart';
 import '../domain/auth_session.dart';
 import '../domain/auth_session_repository.dart';
+import '../domain/google_identity_provider.dart';
 import '../domain/magic_link_request_result.dart';
 import 'auth_api_client.dart';
 import 'auth_local_data_source.dart';
+import 'google_identity_provider_impl.dart';
 
 final authSessionRepositoryProvider = Provider<AuthSessionRepository>((ref) {
   return AuthRepositoryImpl(
     apiClient: ref.watch(authApiClientProvider),
+    googleIdentityProvider: ref.watch(googleIdentityProviderProvider),
     localDataSource: ref.watch(authLocalDataSourceProvider),
     logger: ref.watch(appLoggerProvider),
   );
@@ -27,16 +30,26 @@ final authApiClientProvider = Provider<AuthApiClient>((ref) {
   );
 });
 
+final googleIdentityProviderProvider = Provider<GoogleIdentityProvider>((ref) {
+  return GoogleIdentityProviderImpl(
+    clientId: ref.watch(googleClientIdProvider),
+    serverClientId: ref.watch(googleServerClientIdProvider),
+  );
+});
+
 class AuthRepositoryImpl implements AuthSessionRepository {
   AuthRepositoryImpl({
     required AuthApiClient apiClient,
+    required GoogleIdentityProvider googleIdentityProvider,
     required AuthLocalDataSource localDataSource,
     required AppLogger logger,
   })  : _apiClient = apiClient,
+        _googleIdentityProvider = googleIdentityProvider,
         _localDataSource = localDataSource,
         _logger = logger;
 
   final AuthApiClient _apiClient;
+  final GoogleIdentityProvider _googleIdentityProvider;
   final AuthLocalDataSource _localDataSource;
   final AppLogger _logger;
 
@@ -107,11 +120,19 @@ class AuthRepositoryImpl implements AuthSessionRepository {
     required String email,
     required String displayName,
   }) async {
-    final providerSubject = 'preview:${email.trim().toLowerCase()}';
+    final identity = await _googleIdentityProvider.signIn();
+    final resolvedEmail = identity.email.isNotEmpty
+        ? identity.email
+        : email.trim().toLowerCase();
+    final resolvedDisplayName = identity.displayName.isNotEmpty
+        ? identity.displayName
+        : displayName.trim();
     final session = await _apiClient.exchangeGoogle(
-      email: email,
-      displayName: displayName,
-      providerSubject: providerSubject,
+      idToken: identity.idToken,
+      email: resolvedEmail,
+      displayName: resolvedDisplayName,
+      providerSubject: identity.providerSubject,
+      avatarUrl: identity.avatarUrl,
     );
     await _localDataSource.saveAccessToken(session.accessToken);
     _logger.sync(
@@ -164,6 +185,11 @@ class AuthRepositoryImpl implements AuthSessionRepository {
           rethrow;
         }
       }
+    }
+    try {
+      await _googleIdentityProvider.signOut();
+    } catch (_) {
+      // Backend session revocation and local token cleanup remain authoritative.
     }
     await _localDataSource.clearAccessToken();
     _logger.sync(

@@ -26,6 +26,7 @@ from app.modules.auth.infrastructure.magic_link_delivery import (
     MagicLinkDeliveryGateway,
     MagicLinkDeliveryMessage,
 )
+from app.modules.auth.infrastructure.google_token_verifier import GoogleTokenVerifier
 from app.modules.auth.infrastructure.repository import AuthRepository
 from app.modules.auth.infrastructure.tokens import InvalidSignedTokenError, TokenService
 from app.modules.player.infrastructure.models import User
@@ -37,6 +38,7 @@ TOKEN_STRATEGY = "jwt_plus_session_store"
 _repository = AuthRepository()
 _tokens = TokenService()
 _delivery_gateway = MagicLinkDeliveryGateway()
+_google_verifier = GoogleTokenVerifier()
 
 
 def _utcnow() -> datetime:
@@ -54,6 +56,11 @@ def _serialize_datetime(value: datetime) -> str:
 
 
 def list_available_auth_providers() -> tuple[AuthProviderDescriptor, ...]:
+    google_available = _google_verifier.is_configured()
+    google_preview = settings.auth_allow_dev_provider_bypass and settings.app_env in {
+        "development",
+        "test",
+    }
     magic_link_configured = _delivery_gateway.is_configured()
     magic_link_preview = settings.app_env in {"development", "test"}
     return (
@@ -62,13 +69,17 @@ def list_available_auth_providers() -> tuple[AuthProviderDescriptor, ...]:
             display_name="Google",
             transport="oauth",
             availability=(
-                "development_preview"
-                if settings.auth_allow_dev_provider_bypass
+                "available"
+                if google_available
+                else "development_preview"
+                if google_preview
                 else "disabled"
             ),
             status_message=(
-                "Usa bypass de desarrollo hasta integrar Google Sign-In real."
-                if settings.auth_allow_dev_provider_bypass
+                "Google Sign-In real disponible en este entorno."
+                if google_available
+                else "Usa bypass de desarrollo hasta configurar la verificacion real del token."
+                if google_preview
                 else "Google Sign-In real todavia no esta configurado en este entorno."
             ),
         ),
@@ -95,6 +106,10 @@ def list_available_auth_providers() -> tuple[AuthProviderDescriptor, ...]:
     )
 
 
+def is_google_auth_ready() -> bool:
+    return _google_verifier.is_configured()
+
+
 def sign_in_with_google(
     db: Session,
     *,
@@ -104,18 +119,25 @@ def sign_in_with_google(
     provider_subject: str,
     avatar_url: str,
 ) -> IssuedAuthSession:
-    if not settings.auth_allow_dev_provider_bypass and settings.app_env not in {"development", "test"}:
-        raise AuthProviderVerificationFailedError("Google verification is not configured in this environment.")
     if not id_token.strip():
         raise AuthProviderVerificationFailedError("Google token is required.")
-
-    normalized_subject = provider_subject.strip()
-    if not normalized_subject:
-        raise AuthProviderVerificationFailedError("Google provider subject is required.")
-
-    normalized_email = email.strip().lower()
-    alias = display_name.strip() or normalized_email or "Hunter"
-    avatar = avatar_url.strip()
+    if _google_verifier.is_configured():
+        verified_identity = _google_verifier.verify(id_token)
+        normalized_subject = verified_identity.provider_subject
+        normalized_email = verified_identity.email
+        alias = verified_identity.display_name or display_name.strip() or normalized_email or "Hunter"
+        avatar = verified_identity.avatar_url or avatar_url.strip()
+    else:
+        if not settings.auth_allow_dev_provider_bypass or settings.app_env not in {"development", "test"}:
+            raise AuthProviderVerificationFailedError(
+                "Google verification is not configured in this environment.",
+            )
+        normalized_subject = provider_subject.strip()
+        if not normalized_subject:
+            raise AuthProviderVerificationFailedError("Google provider subject is required.")
+        normalized_email = email.strip().lower()
+        alias = display_name.strip() or normalized_email or "Hunter"
+        avatar = avatar_url.strip()
 
     identity = _repository.get_identity(db, "google", normalized_subject)
     user = None

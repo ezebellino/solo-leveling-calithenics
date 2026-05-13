@@ -24,6 +24,10 @@ class Settings(BaseSettings):
         default="solo-leveling-dev-auth-secret",
         validation_alias="AUTH_TOKEN_SECRET",
     )
+    auth_google_client_ids: str = Field(
+        default="",
+        validation_alias="AUTH_GOOGLE_CLIENT_IDS",
+    )
     auth_token_issuer: str = Field(
         default="solo-leveling-api",
         validation_alias="AUTH_TOKEN_ISSUER",

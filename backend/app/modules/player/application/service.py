@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 
+from app.modules.auth.application.service import is_google_auth_ready
 from app.modules.inventory.application.service import list_default_user_inventory
 from app.modules.inventory.domain.entities import InventoryItemView
 from app.modules.player.api.schemas import (
@@ -120,7 +121,7 @@ def get_player_bootstrap(
         stage=_serialize_stage(user),
         featureFlags={
             "local_sync_ready": True,
-            "google_auth_ready": False,
+            "google_auth_ready": is_google_auth_ready(),
             "special_quest_enabled": True,
             "database_ready": True,
         },
