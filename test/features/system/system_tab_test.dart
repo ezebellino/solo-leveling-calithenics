@@ -119,9 +119,13 @@ void main() {
     expect(find.text('Vista dorsal'), findsOneWidget);
     expect(find.text('4 ZONAS ACTIVAS'), findsOneWidget);
     expect(find.text('2 ZONAS ACTIVAS'), findsOneWidget);
-    expect(find.textContaining('Foco principal:'), findsNothing);
-    expect(find.textContaining('Foco secundario:'), findsNothing);
-    expect(find.textContaining('Recuperacion sugerida:'), findsNothing);
+    expect(find.text('EJERCICIOS EN FOCO'), findsOneWidget);
+    expect(find.text('Foco principal'), findsOneWidget);
+    expect(find.text('Recuperacion sugerida'), findsOneWidget);
+    expect(find.byKey(const Key('muscle-map-summary-primary')), findsOneWidget);
+    expect(find.byKey(const Key('muscle-map-summary-recovery')), findsOneWidget);
+    expect(find.byKey(const Key('muscle-map-exercise-0')), findsOneWidget);
+    expect(find.byKey(const Key('muscle-map-exercise-1')), findsOneWidget);
     expect(find.text('CAMINO DEL CAZADOR'), findsNothing);
   });
 }

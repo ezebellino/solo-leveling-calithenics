@@ -10,6 +10,7 @@ import '../../../home/presentation/widgets/section_palette.dart';
 import '../../../home/presentation/widgets/stat_hex_tile.dart';
 import '../../../home/presentation/widgets/system_badge.dart';
 import '../../../quests/presentation/widgets/quest_card.dart';
+import '../widgets/system_exercise_focus_card.dart';
 import '../widgets/system_muscle_map_models.dart';
 import '../widgets/system_muscle_silhouette.dart';
 
@@ -321,6 +322,48 @@ class SystemTab extends StatelessWidget {
                 frontZones: muscleMapModel.highlightZonesFront,
                 backZones: muscleMapModel.highlightZonesBack,
               ),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _SystemInfoChip(
+                    key: const Key('muscle-map-summary-primary'),
+                    label: 'Foco principal',
+                    value: muscleMapModel.primaryFocus,
+                    accent: palette.primary,
+                    preserveLabelCase: true,
+                    minWidth: 180,
+                  ),
+                  _SystemInfoChip(
+                    key: const Key('muscle-map-summary-recovery'),
+                    label: 'Recuperacion sugerida',
+                    value: muscleMapModel.recoveryHint,
+                    accent: palette.secondary,
+                    preserveLabelCase: true,
+                    minWidth: 180,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'EJERCICIOS EN FOCO',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: palette.primary,
+                  letterSpacing: 1.8,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...muscleMapModel.exerciseCards.indexed.map(
+                (entry) => Padding(
+                  key: Key('muscle-map-exercise-${entry.$1}'),
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: SystemExerciseFocusCard(
+                    exercise: entry.$2,
+                    palette: palette,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -334,17 +377,23 @@ class _SystemInfoChip extends StatelessWidget {
     required this.label,
     required this.value,
     required this.accent,
+    this.preserveLabelCase = false,
+    this.minWidth,
+    super.key,
   });
 
   final String label;
   final String value;
   final Color accent;
+  final bool preserveLabelCase;
+  final double? minWidth;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Container(
+      constraints: minWidth == null ? null : BoxConstraints(minWidth: minWidth!),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.08),
@@ -356,10 +405,10 @@ class _SystemInfoChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            label.toUpperCase(),
+            preserveLabelCase ? label : label.toUpperCase(),
             style: theme.textTheme.labelSmall?.copyWith(
               color: accent,
-              letterSpacing: 1.2,
+              letterSpacing: preserveLabelCase ? 0.8 : 1.2,
             ),
           ),
           const SizedBox(height: 4),
